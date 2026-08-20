@@ -6,14 +6,14 @@ Gradle projects, including large multi-module Maven reactors.
 
 This project is not affiliated with or endorsed by OpenRewrite, Spring, or Helidon.
 
-The current release is `0.1.0`. The source branch is the unreleased `0.2.0-SNAPSHOT`; both target
+The current release is `0.2.0` and targets
 [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3). This is intentionally
 an assessment-first migration scaffold, not a one-command framework replacement. The canonical
 recipe inventories Spring source and project usage and changes no application semantics, build
 files, resources, or runtime launcher. Bounded migration leaves are available for deliberate,
 separately reviewed steps.
 
-> **Preview status:** Neither v0.1 nor the v0.2 snapshot provides an application-wide atomic
+> **Preview status:** v0.2 does not provide an application-wide atomic
 > runtime migration. Do not compose mutating leaf recipes as though they were a complete migration
 > pipeline. Always use an isolated branch, dry-run one leaf at a time, and compile and test the
 > affected module.
@@ -45,11 +45,10 @@ reviewing its exact boundary and the surrounding module.
 | A direct, attributed Spring `@Transactional` that satisfies every v0.2 transaction preflight | Jakarta `@Transactional` with an equivalent transaction type and explicit rollback rules |
 
 Spring MVC, `ResponseEntity`, Spring Boot launcher, and `@Value` leaf recipes remain
-assessment-only. The released v0.1 transaction leaf is also assessment-only. In the v0.2 source
-snapshot, `MigrateSpringTransactionalToJakarta` is a bounded migration for a deliberately narrow
-transaction subset, and `MigrateSpringTransactionalToJakartaIncludingSupports` is a separate
-opt-in for the additional SUPPORTS policy. The CDI leaves preserve an entire Spring bean when any
-member uses `@Value`.
+assessment-only. In v0.2, `MigrateSpringTransactionalToJakarta` is a bounded migration for a
+deliberately narrow transaction subset, and
+`MigrateSpringTransactionalToJakartaIncludingSupports` is a separate opt-in for the additional
+SUPPORTS policy. The CDI leaves preserve an entire Spring bean when any member uses `@Value`.
 
 The recipe does **not** automatically port security, repositories, application property files,
 messaging, reactive code, tests, or deployment architecture. It also does not remove Spring
@@ -149,8 +148,8 @@ ready to leave Spring.
 | `MigrateSpringDiToCdi` | Opt-in: converts a locally proxy-safe subset of stereotypes, injection points, and producers to CDI. |
 | `MigrateSpringMvcToJakartaRest` | Assessment-only: preserves and marks Spring MVC REST controllers. |
 | `MigrateSpringNamedBeansToCdi` | Opt-in: converts a locally safe named-bean subset to CDI `@Named`. |
-| `MigrateSpringTransactionalToJakarta` | v0.2 source opt-in: migrates a module-gated, class-hierarchy-atomic subset of direct Spring transaction annotations; otherwise records a refusal and preserves the whole affected hierarchy. Released v0.1 remains assessment-only. |
-| `MigrateSpringTransactionalToJakartaIncludingSupports` | v0.2 source opt-in: runs the same transaction preflight and additionally accepts the documented SUPPORTS synchronization-scope difference. |
+| `MigrateSpringTransactionalToJakarta` | v0.2 opt-in: migrates a module-gated, class-hierarchy-atomic subset of direct Spring transaction annotations; otherwise records a refusal and preserves the whole affected hierarchy. |
+| `MigrateSpringTransactionalToJakartaIncludingSupports` | v0.2 opt-in: runs the same transaction preflight and additionally accepts the documented SUPPORTS synchronization-scope difference. |
 | `MigrateSpringValueToConfigProperty` | Preserves and marks every `@Value` injection point for explicit configuration-contract migration. |
 
 For example, this service is deliberately not half-converted:
@@ -184,8 +183,8 @@ after proving the source and target configuration semantics.
 
 ## Quick start with Maven
 
-Version `0.1.0` is distributed as source through GitHub Releases and is not published to Maven
-Central. Download its source archive or check out tag `v0.1.0`, then build and install it into the
+Version `0.2.0` is distributed as source through GitHub Releases and is not published to Maven
+Central. Download its source archive or check out tag `v0.2.0`, then build and install it into the
 local Maven repository:
 
 ```bash
@@ -197,47 +196,41 @@ From the target application's root, assess the code without changing it:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
 
 Review both the dry-run patch and the CSVs under
 `target/rewrite/datatables/<timestamp>/`. The Spring usage inventory contains the source
-path, feature family, Spring type, support level, and suggested replacement. v0.1 reports bounded
-leaf coverage as `PARTIAL` and assessment-only families as `MANUAL`; `AUTOMATIC` is reserved for a
-future module-atomic canonical migration.
+path, feature family, Spring type, support level, and suggested replacement. The project assessment
+table adds source kind, artifact construct, outcome, stable reason code, and target direction. v0.2
+reports bounded leaf coverage as `PARTIAL` and assessment-only families as `MANUAL`; `AUTOMATIC` is
+reserved for a future application-atomic canonical migration.
 
-The canonical compatibility entry point produces the same assessment in v0.1:
+The canonical compatibility entry point produces the same assessment in v0.2:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
 
-There is normally no reason to replace `dryRun` with `run` for a top-level v0.1 recipe: its printed
+There is normally no reason to replace `dryRun` with `run` for a top-level v0.2 recipe: its printed
 changes are search markers. To experiment with a mutating leaf, replace the active recipe with that
 leaf's fully qualified ID, keep `dryRun`, and review its section in
 [the detailed automation boundary](docs/automation-boundary.md). Apply it only in an isolated branch
 or worktree and validate one executable module before widening the scope.
 
-### Try the unreleased v0.2 snapshot from source
+### Run the bounded v0.2 transaction migration
 
-The v0.2 transaction migration is not in the `0.1.0` release. From a checkout of this repository's
-v0.2 source, verify and install `0.2.0-SNAPSHOT` locally:
-
-```bash
-./mvnw --batch-mode verify
-./mvnw --batch-mode install
-```
-
-Then dry-run the bounded base transaction recipe from the target application's root:
+After installing version `0.2.0` locally, dry-run the bounded base transaction recipe from the
+target application's root:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0-SNAPSHOT \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta \
   -Drewrite.exportDatatables=true
 ```
@@ -249,9 +242,9 @@ described below. Neither transaction leaf is part of a top-level recipe.
 
 ## Gradle consumption
 
-The Java source recipes can run through the OpenRewrite Gradle plugin. The v0.1 build recipe
+The Java source recipes can run through the OpenRewrite Gradle plugin. The v0.2 build recipe
 only edits Maven POMs, so Gradle dependency management and packaging must be migrated manually.
-After installing version `0.1.0` locally, a Groovy build can load it as follows:
+After installing version `0.2.0` locally, a Groovy build can load it as follows:
 
 ```groovy
 plugins {
@@ -265,7 +258,7 @@ repositories {
 }
 
 dependencies {
-    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0'
+    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0'
 }
 
 rewrite {
@@ -453,7 +446,7 @@ Recipe implementations live under `src/main/java`, declarative compositions unde
 `src/main/resources/META-INF/rewrite`, and focused `RewriteTest` cases under `src/test/java`.
 When adding automation, include both a successful conversion test and a test proving that
 unsupported semantics are preserved and marked for review. The transaction contract installs the
-current snapshot locally, creates generated source under an operating-system temporary directory,
+current version locally, creates generated source under an operating-system temporary directory,
 and runs deterministic Spring Boot and Helidon MP H2 fixtures; allow time for both nested reactors.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete contribution contract,

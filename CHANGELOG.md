@@ -6,6 +6,8 @@ All notable changes will be documented here. This project follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-20
+
 ### Added
 
 - `FindSpringProjectUsage` and the canonical assessment now export occurrence-level
@@ -22,7 +24,7 @@ All notable changes will be documented here. This project follows
 
 ### Changed
 
-- The unreleased source version is `0.2.0-SNAPSHOT`; `0.1.0` remains the current release.
+- The source distribution and SCM metadata now identify the `0.2.0` release and `v0.2.0` tag.
 - The canonical assessment composes both `FindSpringUsage` and `FindSpringProjectUsage` while
   remaining read-only. Sensitive configuration, registration metadata, and non-POM XML findings
   are table-only so dry-run patches do not reproduce values or neighboring content.
@@ -55,5 +57,6 @@ All notable changes will be documented here. This project follows
 - Spring MVC, response, transaction, configuration injection, and launcher code remain unchanged
   when exact runtime behavior cannot be proved from source alone.
 
-[Unreleased]: https://github.com/Devansh-ops/rewrite-spring-to-helidon/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Devansh-ops/rewrite-spring-to-helidon/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Devansh-ops/rewrite-spring-to-helidon/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Devansh-ops/rewrite-spring-to-helidon/releases/tag/v0.1.0
