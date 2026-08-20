@@ -2,6 +2,7 @@ package io.github.devanshops.rewrite.helidon;
 
 import io.github.devanshops.rewrite.helidon.table.MigrationAssessmentTable;
 import org.junit.jupiter.api.Test;
+import org.openrewrite.DocumentExample;
 import org.openrewrite.java.JavaParser;
 import org.openrewrite.test.RecipeSpec;
 
@@ -28,6 +29,7 @@ class MigrateSpringTransactionalToJakartaIncludingSupportsTest
         // SUPPORTS is the sole intentional delta in this opt-in contract.
     }
 
+    @DocumentExample
     @Test
     void mapsSupportsInTheSameAtomicPlanAsRequired() {
         rewriteRun(

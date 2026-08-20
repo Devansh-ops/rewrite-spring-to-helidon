@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -287,7 +288,8 @@ public final class FindSpringProjectUsage extends ScanningRecipe<FindSpringProje
         if (coordinate == null) {
             return;
         }
-        if ("platform".equals(methodName) || "enforcedPlatform".equals(methodName)) {
+        if ("platform".equals(methodName) || "enforcedPlatform".equals(methodName) ||
+                "mavenBom".equals(methodName)) {
             accumulator.add(manual(sourcePath, sourceKind, "Spring Gradle BOM",
                     coordinate, "SPRING_GRADLE_BOM",
                     "No bounded Gradle dependency-management migration is selected.",
@@ -603,11 +605,9 @@ public final class FindSpringProjectUsage extends ScanningRecipe<FindSpringProje
                     addMavenCoordinate(acc, sourcePath, visited, "Spring Maven parent",
                             "SPRING_MAVEN_PARENT");
                 } else if ("dependency".equals(name)) {
-                    String artifactId = visited.getChildValue("artifactId").orElse("");
                     String type = visited.getChildValue("type").orElse("");
                     String scope = visited.getChildValue("scope").orElse("");
-                    if ("spring-boot-dependencies".equals(artifactId) &&
-                            "pom".equals(type) && "import".equals(scope)) {
+                    if ("pom".equals(type) && "import".equals(scope)) {
                         addMavenCoordinate(acc, sourcePath, visited, "Spring Maven BOM",
                                 "SPRING_MAVEN_BOM");
                     } else {
@@ -757,12 +757,22 @@ public final class FindSpringProjectUsage extends ScanningRecipe<FindSpringProje
     }
 
     private static String javaSourceKind(String sourcePath) {
-        String normalized = '/' + sourcePath + '/';
-        if (normalized.contains("/src/test/java/")) {
-            return "JAVA_TEST";
-        }
-        if (normalized.contains("/src/main/java/")) {
-            return "JAVA_MAIN";
+        String[] segments = sourcePath.split("/");
+        for (int i = 0; i + 2 < segments.length; i++) {
+            if (!"src".equals(segments[i]) || !"java".equals(segments[i + 2])) {
+                continue;
+            }
+            String sourceSet = segments[i + 1];
+            if ("main".equals(sourceSet)) {
+                return "JAVA_MAIN";
+            }
+            String normalizedSourceSet = sourceSet.toLowerCase(Locale.ROOT);
+            if ("test".equals(normalizedSourceSet) ||
+                    normalizedSourceSet.startsWith("test") ||
+                    normalizedSourceSet.endsWith("test")) {
+                return "JAVA_TEST";
+            }
+            return "JAVA_SOURCE";
         }
         return "JAVA_SOURCE";
     }

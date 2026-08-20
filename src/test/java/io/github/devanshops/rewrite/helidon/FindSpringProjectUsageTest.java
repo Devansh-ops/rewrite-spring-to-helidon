@@ -2,6 +2,7 @@ package io.github.devanshops.rewrite.helidon;
 
 import io.github.devanshops.rewrite.helidon.table.MigrationAssessmentTable;
 import org.junit.jupiter.api.Test;
+import org.openrewrite.DocumentExample;
 import org.openrewrite.java.JavaParser;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
@@ -23,13 +24,16 @@ class FindSpringProjectUsageTest implements RewriteTest {
     public void defaults(RecipeSpec spec) {
         spec.recipe(new FindSpringProjectUsage())
                 .parser(JavaParser.fromJavaVersion()
-                        .classpath("spring-context", "spring-tx"));
+                        .classpath("spring-context", "spring-tx"))
+                .cycles(2);
     }
 
+    @DocumentExample
     @Test
     void inventoriesMainAndTestJavaByTheirFullProjectPaths() {
         rewriteRun(
-          spec -> spec.dataTable(MigrationAssessmentTable.Row.class, rows ->
+          spec -> spec.expectedCyclesThatMakeChanges(1)
+                  .dataTable(MigrationAssessmentTable.Row.class, rows ->
                   assertThat(rows)
                           .extracting(MigrationAssessmentTable.Row::getSourcePath,
                                   MigrationAssessmentTable.Row::getSourceKind,
@@ -88,6 +92,64 @@ class FindSpringProjectUsageTest implements RewriteTest {
               }
               """,
             source -> source.path("orders/src/test/java/com/acme/OrderTest.java"))
+        );
+    }
+
+    @Test
+    void classifiesConventionalCustomJavaTestSourceSetsAsTests() {
+        rewriteRun(
+          spec -> spec.dataTable(MigrationAssessmentTable.Row.class, rows ->
+                  assertThat(rows)
+                          .extracting(MigrationAssessmentTable.Row::getSourcePath,
+                                  MigrationAssessmentTable.Row::getSourceKind,
+                                  MigrationAssessmentTable.Row::getConstruct)
+                          .containsExactlyInAnyOrder(
+                                  tuple("catalog/src/integrationTest/java/com/acme/CatalogIT.java",
+                                          "JAVA_TEST",
+                                          "org.springframework.context.ApplicationContext"),
+                                  tuple("orders/src/functionalTest/java/com/acme/OrderFlowTest.java",
+                                          "JAVA_TEST",
+                                          "org.springframework.context.ApplicationContext"))),
+          java(
+            """
+              package com.acme;
+
+              import org.springframework.context.ApplicationContext;
+
+              class CatalogIT {
+                  ApplicationContext context;
+              }
+              """,
+            """
+              package com.acme;
+
+              /*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.context.ApplicationContext;
+
+              class CatalogIT {
+                  ApplicationContext context;
+              }
+              """,
+            source -> source.path("catalog/src/integrationTest/java/com/acme/CatalogIT.java")),
+          java(
+            """
+              package com.acme;
+
+              import org.springframework.context.ApplicationContext;
+
+              class OrderFlowTest {
+                  ApplicationContext context;
+              }
+              """,
+            """
+              package com.acme;
+
+              /*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.context.ApplicationContext;
+
+              class OrderFlowTest {
+                  ApplicationContext context;
+              }
+              """,
+            source -> source.path("orders/src/functionalTest/java/com/acme/OrderFlowTest.java"))
         );
     }
 
@@ -338,6 +400,77 @@ class FindSpringProjectUsageTest implements RewriteTest {
               </project>
               """,
             source -> source.path("inventory/pom.xml"))
+        );
+    }
+
+    @Test
+    void classifiesImportedSpringFrameworkAndCloudCoordinatesAsMavenBoms() {
+        rewriteRun(
+          spec -> spec.dataTable(MigrationAssessmentTable.Row.class, rows ->
+                  assertThat(rows)
+                          .extracting(MigrationAssessmentTable.Row::getConstruct,
+                                  MigrationAssessmentTable.Row::getFeature,
+                                  MigrationAssessmentTable.Row::getSupportLevel,
+                                  MigrationAssessmentTable.Row::getReasonCode)
+                          .containsExactlyInAnyOrder(
+                                  tuple("org.springframework:spring-framework-bom",
+                                          "Spring Maven BOM", "PARTIAL", "SPRING_MAVEN_BOM"),
+                                  tuple("org.springframework.cloud:spring-cloud-dependencies",
+                                          "Spring Maven BOM", "PARTIAL", "SPRING_MAVEN_BOM"))),
+          pomXml(
+            """
+              <project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>com.acme</groupId>
+                  <artifactId>catalog</artifactId>
+                  <version>1.0.0</version>
+                  <dependencyManagement>
+                      <dependencies>
+                          <dependency>
+                              <groupId>org.springframework</groupId>
+                              <artifactId>spring-framework-bom</artifactId>
+                              <version>7.0.8</version>
+                              <type>pom</type>
+                              <scope>import</scope>
+                          </dependency>
+                          <dependency>
+                              <groupId>org.springframework.cloud</groupId>
+                              <artifactId>spring-cloud-dependencies</artifactId>
+                              <version>2025.1.2</version>
+                              <type>pom</type>
+                              <scope>import</scope>
+                          </dependency>
+                      </dependencies>
+                  </dependencyManagement>
+              </project>
+              """,
+            """
+              <project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>com.acme</groupId>
+                  <artifactId>catalog</artifactId>
+                  <version>1.0.0</version>
+                  <dependencyManagement>
+                      <dependencies>
+                          <!--~~(PARTIAL: Spring Maven BOM [SPRING_MAVEN_BOM] -> io.github.devanshops.rewrite.helidon.PrepareMavenBuildForHelidonMp)~~>--><dependency>
+                              <groupId>org.springframework</groupId>
+                              <artifactId>spring-framework-bom</artifactId>
+                              <version>7.0.8</version>
+                              <type>pom</type>
+                              <scope>import</scope>
+                          </dependency>
+                          <!--~~(PARTIAL: Spring Maven BOM [SPRING_MAVEN_BOM] -> io.github.devanshops.rewrite.helidon.PrepareMavenBuildForHelidonMp)~~>--><dependency>
+                              <groupId>org.springframework.cloud</groupId>
+                              <artifactId>spring-cloud-dependencies</artifactId>
+                              <version>2025.1.2</version>
+                              <type>pom</type>
+                              <scope>import</scope>
+                          </dependency>
+                      </dependencies>
+                  </dependencyManagement>
+              </project>
+              """,
+            source -> source.path("catalog/pom.xml"))
         );
     }
 
@@ -751,6 +884,85 @@ class FindSpringProjectUsageTest implements RewriteTest {
               }
               """,
             source -> source.path("payments/build.gradle"))
+        );
+    }
+
+    @Test
+    void inventoriesLiteralSpringDependencyManagementMavenBoms() {
+        rewriteRun(
+          spec -> spec.dataTable(MigrationAssessmentTable.Row.class, rows ->
+                  assertThat(rows)
+                          .extracting(MigrationAssessmentTable.Row::getSourceKind,
+                                  MigrationAssessmentTable.Row::getConstruct,
+                                  MigrationAssessmentTable.Row::getFeature,
+                                  MigrationAssessmentTable.Row::getReasonCode)
+                          .containsExactlyInAnyOrder(
+                                  tuple("GRADLE_GROOVY",
+                                          "org.springframework.cloud:spring-cloud-dependencies",
+                                          "Spring Gradle BOM", "SPRING_GRADLE_BOM"),
+                                  tuple("GRADLE_KOTLIN",
+                                          "org.springframework:spring-framework-bom",
+                                          "Spring Gradle BOM", "SPRING_GRADLE_BOM"))),
+          buildGradle(
+            """
+              dependencyManagement {
+                  imports {
+                      mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
+                  }
+              }
+              """,
+            """
+              dependencyManagement {
+                  imports {
+                      /*~~(MANUAL: Spring Gradle BOM [SPRING_GRADLE_BOM] -> Migrate the Gradle build with an explicit Helidon module policy)~~>*/mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
+                  }
+              }
+              """,
+            source -> source.path("catalog/build.gradle")),
+          buildGradleKts(
+            """
+              dependencyManagement {
+                  imports {
+                      mavenBom("org.springframework:spring-framework-bom:7.0.8")
+                  }
+              }
+              """,
+            """
+              dependencyManagement {
+                  imports {
+                      /*~~(MANUAL: Spring Gradle BOM [SPRING_GRADLE_BOM] -> Migrate the Gradle build with an explicit Helidon module policy)~~>*/mavenBom("org.springframework:spring-framework-bom:7.0.8")
+                  }
+              }
+              """,
+            source -> source.path("catalog/build.gradle.kts"))
+        );
+    }
+
+    @Test
+    void ignoresComputedSpringDependencyManagementMavenBomCoordinates() {
+        rewriteRun(
+          buildGradle(
+            """
+              def springBom = 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
+
+              dependencyManagement {
+                  imports {
+                      mavenBom springBom
+                  }
+              }
+              """,
+            source -> source.path("dynamic/build.gradle")),
+          buildGradleKts(
+            """
+              val springBom = "org.springframework:spring-framework-bom:7.0.8"
+
+              dependencyManagement {
+                  imports {
+                      mavenBom(springBom)
+                  }
+              }
+              """,
+            source -> source.path("dynamic/build.gradle.kts"))
         );
     }
 

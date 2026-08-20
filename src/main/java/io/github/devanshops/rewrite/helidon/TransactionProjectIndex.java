@@ -504,7 +504,9 @@ final class TransactionProjectIndex {
                 hasAnnotation(classDecl.getLeadingAnnotations(),
                         "jakarta.enterprise.context.SessionScoped") ||
                 hasAnnotation(classDecl.getLeadingAnnotations(),
-                        "jakarta.enterprise.context.ConversationScoped");
+                        "jakarta.enterprise.context.ConversationScoped") ||
+                hasProvenAnnotationOrMetaAnnotation(classDecl.getLeadingAnnotations(),
+                        "jakarta.enterprise.context.NormalScope");
     }
 
     private static boolean hasProxyConstructor(J.ClassDeclaration classDecl) {
@@ -904,7 +906,10 @@ final class TransactionProjectIndex {
                 return true;
             }
         }
-        return false;
+        return hasProvenAnnotationOrMetaAnnotation(owner.getLeadingAnnotations(),
+                "jakarta.enterprise.inject.Stereotype") ||
+                hasProvenAnnotationOrMetaAnnotation(owner.getLeadingAnnotations(),
+                        "jakarta.enterprise.context.NormalScope");
     }
 
     private static boolean isInterceptable(J.ClassDeclaration owner,
@@ -985,6 +990,18 @@ final class TransactionProjectIndex {
             MetaAnnotationMatch match = metaAnnotationMatch(type, expectedType,
                     new HashSet<String>(), 0);
             if (match != MetaAnnotationMatch.NO_MATCH) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasProvenAnnotationOrMetaAnnotation(List<J.Annotation> annotations,
+                                                                String expectedType) {
+        for (J.Annotation annotation : annotations) {
+            JavaType.FullyQualified type = TypeUtils.asFullyQualified(annotation.getType());
+            if (type != null && metaAnnotationMatch(type, expectedType,
+                    new HashSet<String>(), 0) == MetaAnnotationMatch.MATCH) {
                 return true;
             }
         }

@@ -1055,6 +1055,155 @@ class MigrateSpringTransactionalToJakartaTest implements RewriteTest {
     }
 
     @Test
+    void acceptsAttributedCustomCdiStereotypeAsBeanDefiningAnnotation() {
+        rewriteRun(
+          java(
+            """
+              package com.example.stereotype;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.inject.Stereotype;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @Stereotype
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(ElementType.TYPE)
+              @interface ApplicationService {}
+
+              @ApplicationService
+              class OrderService {
+                  @Transactional public void work() {}
+              }
+              """,
+            """
+              package com.example.stereotype;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.inject.Stereotype;
+              import jakarta.transaction.Transactional;
+
+              @Stereotype
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(ElementType.TYPE)
+              @interface ApplicationService {}
+
+              @ApplicationService
+              class OrderService {
+                  /*~~(MIGRATED [TX_MIGRATED_REQUIRED]: migrated Spring REQUIRED semantics to Jakarta Transactions)~~>*/@Transactional(rollbackOn = Error.class) public void work() {}
+              }
+              """,
+            source -> source.path(
+                    "stereotype/src/main/java/com/example/stereotype/OrderService.java"))
+        );
+    }
+
+    @Test
+    void acceptsAttributedCustomNormalScopeAndAppliesItsProxyPreflight() {
+        rewriteRun(
+          java(
+            """
+              package com.example.customscope;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.context.NormalScope;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @NormalScope
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+              @interface TenantScoped {}
+
+              @TenantScoped
+              class OrderService {
+                  @Transactional public void work() {}
+              }
+              """,
+            """
+              package com.example.customscope;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.context.NormalScope;
+              import jakarta.transaction.Transactional;
+
+              @NormalScope
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+              @interface TenantScoped {}
+
+              @TenantScoped
+              class OrderService {
+                  /*~~(MIGRATED [TX_MIGRATED_REQUIRED]: migrated Spring REQUIRED semantics to Jakarta Transactions)~~>*/@Transactional(rollbackOn = Error.class) public void work() {}
+              }
+              """,
+            source -> source.path(
+                    "custom-scope/src/main/java/com/example/customscope/OrderService.java")),
+          java(
+            """
+              package com.example.customscopeproxy;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.context.NormalScope;
+              import jakarta.inject.Inject;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @NormalScope
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+              @interface TenantScoped {}
+
+              @TenantScoped
+              class OrderService {
+                  @Inject
+                  OrderService(String dependency) {}
+
+                  @Transactional public void work() {}
+              }
+              """,
+            """
+              package com.example.customscopeproxy;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+              import jakarta.enterprise.context.NormalScope;
+              import jakarta.inject.Inject;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @NormalScope
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+              @interface TenantScoped {}
+
+              @TenantScoped
+              class OrderService {
+                  @Inject
+                  OrderService(String dependency) {}
+
+                  /*~~(REFUSED [TX_NON_INTERCEPTABLE_TARGET]: a normal-scoped transactional bean has no non-private no-argument proxy constructor)~~>*/@Transactional public void work() {}
+              }
+              """,
+            source -> source.path(
+                    "custom-scope-proxy/src/main/java/com/example/customscopeproxy/OrderService.java"))
+        );
+    }
+
+    @Test
     void distinguishesNormalScopeProxyConstructorsFromDependentAndSingletonBeans() {
         rewriteRun(
           java(
