@@ -1,0 +1,29 @@
+# OPTIONAL, SEPARATELY LICENSED INTEGRATION
+#
+# This wrapper requires the caller to add this artifact to the OpenRewrite runtime classpath:
+#   org.openrewrite.recipe:rewrite-spring:6.37.1
+#
+# That artifact and `org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` are distributed
+# under the Moderne Source Available License (MSAL), not this project's core license. Keeping
+# the dependency out of this project's POM preserves an independently licensed core. Activate
+# this wrapper only after your organization has reviewed the license and configured access to
+# the artifact repository. The core `SpringBoot4ToHelidonMp` recipe does not require it.
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.github.devanshops.rewrite.helidon.SpringBootToHelidonMpViaBoot4
+displayName: Migrate Spring Boot to Helidon MP via Spring Boot 4
+description: >-
+  Optionally normalizes an application with the separately distributed Spring Boot 4 upgrade
+  recipe before applying the independently implemented Helidon MP migration.
+tags:
+  - spring
+  - helidon
+  - migration
+estimatedEffortPerOccurrence: PT60M
+preconditions:
+  - org.openrewrite.Singleton
+recipeList:
+  # This guard makes a missing optional child a validation error instead of silently skipping it.
+  - io.github.devanshops.rewrite.helidon.RequireSpringBoot4UpgradeRecipe
+  - org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0
+  - io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp

@@ -1,0 +1,33 @@
+name: Recipe proposal
+description: Propose a new safe migration or assessment capability.
+title: "[Recipe]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: spring_semantics
+    attributes:
+      label: Spring semantics
+      description: Describe the source API and behavior that must be preserved.
+    validations:
+      required: true
+  - type: textarea
+    id: target_semantics
+    attributes:
+      label: Helidon/Jakarta/MicroProfile target
+      description: Describe the target API and why its semantics are equivalent.
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Automation boundary
+      description: Which variants are safe to transform, and which should remain marked for review?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Sanitized before/after example
+    validations:
+      required: true

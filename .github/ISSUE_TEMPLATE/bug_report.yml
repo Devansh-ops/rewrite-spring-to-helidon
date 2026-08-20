@@ -1,0 +1,53 @@
+name: Bug report
+description: Report an incorrect transformation, marker, build edit, or recipe failure.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, proprietary source, internal URLs, or personal data.
+  - type: input
+    id: recipe
+    attributes:
+      label: Recipe
+      description: Fully qualified recipe name.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Recipe artifact, OpenRewrite plugin, JDK, build tool, Spring Boot, and Helidon versions.
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Minimal input
+      description: Provide the smallest sanitized source or POM that reproduces the problem.
+      render: java
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and logs
+      description: Include relevant sanitized output and whether this was a dry run.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reproduced this with the latest version on `main` or the latest release.
+          required: true
+        - label: I removed secrets and proprietary identifiers.
+          required: true
