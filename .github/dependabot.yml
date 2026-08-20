@@ -11,6 +11,10 @@ updates:
       - dependency-name: "jakarta.ws.rs:jakarta.ws.rs-api"
         update-types:
           - "version-update:semver-major"
+      # Helidon MP 4.5.x targets CDI 4.0 / Jakarta EE 10, while allowing 4.0.x fixes.
+      - dependency-name: "jakarta.enterprise:jakarta.enterprise.cdi-api"
+        versions:
+          - "[4.1.0,)"
   - package-ecosystem: github-actions
     directory: /
     schedule:
