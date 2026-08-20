@@ -6,6 +6,11 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    ignore:
+      # Helidon MP 4.5.x targets Jakarta REST 3.1 / Jakarta EE 10.
+      - dependency-name: "jakarta.ws.rs:jakarta.ws.rs-api"
+        update-types:
+          - "version-update:semver-major"
   - package-ecosystem: github-actions
     directory: /
     schedule:
