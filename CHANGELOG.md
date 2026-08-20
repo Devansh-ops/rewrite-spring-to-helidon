@@ -6,6 +6,38 @@ All notable changes will be documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- `FindSpringProjectUsage` and the canonical assessment now export occurrence-level
+  `MigrationAssessmentTable` rows for bounded Maven, literal Gradle, Java source-set,
+  configuration, XML, and Spring registration metadata evidence.
+- `MigrateSpringTransactionalToJakarta` now provides a directly activated, module-gated and
+  source-visible-class-hierarchy-atomic bounded migration for REQUIRED, REQUIRES_NEW, MANDATORY,
+  NOT_SUPPORTED, and NEVER with explicit Spring-compatible rollback handling.
+- `MigrateSpringTransactionalToJakartaIncludingSupports` provides a separate opt-in for SUPPORTS
+  after the caller accepts the documented non-transactional synchronization-scope difference.
+- A deterministic H2 differential runtime contract compares Spring Boot 4.1.0 with rewritten
+  source compiled and run on Helidon MP 4.5.3, including propagation, rollback, compilation, and
+  Spring-residue checks.
+
+### Changed
+
+- The unreleased source version is `0.2.0-SNAPSHOT`; `0.1.0` remains the current release.
+- The canonical assessment composes both `FindSpringUsage` and `FindSpringProjectUsage` while
+  remaining read-only. Sensitive configuration, registration metadata, and non-POM XML findings
+  are table-only so dry-run patches do not reproduce values or neighboring content.
+
+### Safety
+
+- Transaction mutation remains outside every canonical top-level recipe and refuses an entire
+  atomic hierarchy when annotation, CDI interception, rollback, hierarchy, or module-policy proof
+  is incomplete.
+- Transaction refusals preserve Spring source and export stable reason codes for unsupported
+  propagation, custom attributes, composed/test/reactive/programmatic/XML behavior, transaction
+  manager selection, unsafe rollback precedence, and incomplete type or hierarchy attribution.
+- The base transaction recipe refuses SUPPORTS by default; the opt-in uses the same preflight and
+  differs only in the explicitly documented synchronization-scope policy.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

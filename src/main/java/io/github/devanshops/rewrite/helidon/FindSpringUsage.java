@@ -371,7 +371,7 @@ public final class FindSpringUsage extends Recipe {
     }
 
     private static Classification classify(String typeName) {
-        // v0.1 reports type-family coverage only. Occurrence-level leaf recipes remain opt-in,
+        // v0.2 reports type-family coverage only. Occurrence-level leaf recipes remain opt-in,
         // so even types with a bounded implementation are never labelled fully automatic here.
         if (isOneOf(typeName,
                 "org.springframework.stereotype.Component",
@@ -390,7 +390,8 @@ public final class FindSpringUsage extends Recipe {
                     "Explicit MicroProfile Config contract or compatibility adapter");
         }
         if ("org.springframework.transaction.annotation.Transactional".equals(typeName)) {
-            return manual("Transactions", "Reviewed Jakarta transaction policy");
+            return partial("Transactions",
+                    "io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta");
         }
         if (isOneOf(typeName,
                 "org.springframework.web.bind.annotation.RestController",

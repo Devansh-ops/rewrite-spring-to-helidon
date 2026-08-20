@@ -3,8 +3,10 @@ type: specs.openrewrite.org/v1beta/recipe
 name: io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp
 displayName: Analyze a Spring Boot application for Helidon MP migration
 description: >-
-  Inventories Spring APIs, marks their exact source locations, and exports migration
-  support and suggested Helidon-compatible replacements without changing application semantics.
+  Inventories Spring APIs and project artifacts and exports migration support and suggested
+  Helidon-compatible replacements without changing application semantics. Java and build evidence
+  receives precise markers; configuration, registration metadata, and non-POM XML are table-only.
+  The inventory is an assessment aid, not a migration-readiness certification.
 tags:
   - spring
   - helidon
@@ -14,14 +16,17 @@ preconditions:
   - org.openrewrite.Singleton
 recipeList:
   - io.github.devanshops.rewrite.helidon.FindSpringUsage
+  - io.github.devanshops.rewrite.helidon.FindSpringProjectUsage
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp
 displayName: Assess Spring Boot 4 for Helidon MP migration
 description: >-
-  Provides the fail-closed v0.1 entry point: inventories Spring usage and marks migration
-  candidates without changing source semantics, build files, resources, or the runtime launcher.
+  Provides the fail-closed entry point: inventories Spring source and project artifacts, marks
+  review-safe candidates, and reports potentially value-bearing evidence table-only without
+  changing source semantics, build files, resources, or the runtime launcher. The inventory is an
+  assessment aid, not a migration-readiness certification.
 tags:
   - spring
   - helidon
@@ -30,18 +35,20 @@ estimatedEffortPerOccurrence: PT5M
 preconditions:
   - org.openrewrite.Singleton
 recipeList:
-  # Source/build transforms remain directly activatable leaf recipes in v0.1. They are not
+  # Source/build transforms remain directly activatable leaf recipes in v0.2. They are not
   # composed here because a partial module conversion can leave a runnable Spring application
   # with CDI-only beans while its Spring launcher and unsupported features remain unchanged.
   - io.github.devanshops.rewrite.helidon.FindSpringUsage
+  - io.github.devanshops.rewrite.helidon.FindSpringProjectUsage
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.github.devanshops.rewrite.helidon.SpringBootToHelidonMp
 displayName: Assess Spring Boot for Helidon MP migration
 description: >-
-  General v0.1 entry point for Spring Boot applications on a modern Jakarta-compatible
-  baseline; delegates to the fail-closed Spring Boot 4 assessment recipe.
+  General entry point for Spring Boot applications on a modern Jakarta-compatible baseline;
+  delegates to the fail-closed Spring Boot 4 assessment recipe. Its inventory is an assessment
+  aid, not a migration-readiness certification.
 tags:
   - spring
   - helidon

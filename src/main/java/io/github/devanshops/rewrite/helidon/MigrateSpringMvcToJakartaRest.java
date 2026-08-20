@@ -19,7 +19,7 @@ public class MigrateSpringMvcToJakartaRest extends Recipe {
     private static final AnnotationMatcher REST_CONTROLLER =
             new AnnotationMatcher("@" + REST_CONTROLLER_TYPE);
     private static final String MANUAL_MIGRATION =
-            "Manual migration: v0.1 preserves this Spring MVC controller because routing, binding, validation, " +
+            "Manual migration: this assessment preserves the Spring MVC controller because routing, binding, validation, " +
             "and response semantics are not yet proven equivalent; no source code was changed";
 
     @Override

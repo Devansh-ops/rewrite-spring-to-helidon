@@ -38,6 +38,7 @@ Run focused tests while developing, followed by the complete suite:
 ```bash
 ./mvnw -Dtest=MigrateSpringMvcToJakartaRestTest test
 ./mvnw --batch-mode clean verify
+./scripts/transaction-contract-test.sh
 ```
 
 ## Pull requests

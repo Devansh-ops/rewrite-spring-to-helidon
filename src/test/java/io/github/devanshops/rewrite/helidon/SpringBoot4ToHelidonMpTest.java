@@ -52,10 +52,10 @@ class SpringBoot4ToHelidonMpTest implements RewriteTest {
             """
               package com.example.catalog;
 
-              /*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/import org.springframework.stereotype.Service;
-              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.GetMapping;
-              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.RequestParam;
-              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.RestController;
+              /*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*//*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.stereotype.Service;
+              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*//*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.web.bind.annotation.GetMapping;
+              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*//*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.web.bind.annotation.RequestParam;
+              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*//*~~(MANUAL: Spring Java API [SPRING_JAVA_API] -> Inspect for a Jakarta, MicroProfile, or Helidon equivalent)~~>*/import org.springframework.web.bind.annotation.RestController;
 
               @/*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/Service
               class CatalogService {
