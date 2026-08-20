@@ -6,6 +6,24 @@ All notable changes will be documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- A protected, tag-only Maven Central publication pipeline with pinned build and GitHub Action
+  dependencies, signed source/Javadoc artifacts, full checksums, GitHub build provenance,
+  immutable-version guards, byte-bound cryptographic Central readback, and a clean Central-only
+  consumer smoke test.
+- Local release-bundle validation and maintainer documentation for Central namespace, signing-key,
+  environment-protection, and secret setup.
+- A fail-closed `origin/main` ancestry guard and an upload-free two-build comparison of the exact
+  unsigned main, sources, Javadoc, and published POM artifacts.
+- Explicit development and stable-tag release-tooling contracts, exercised in ordinary CI with
+  publishing disabled unless the protected release workflow opts in.
+
+### Changed
+
+- Development metadata now uses `0.2.1-SNAPSHOT` and SCM tag `HEAD`. Version `0.2.0` remains a
+  source-only GitHub release and is not represented as a Maven Central publication.
+
 ## [0.2.0] - 2026-08-20
 
 ### Added

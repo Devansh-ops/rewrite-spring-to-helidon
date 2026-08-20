@@ -22,6 +22,16 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Test release tooling
+        shell: bash
+        run: |
+          release_ci_version=$(./mvnw --quiet --no-transfer-progress \
+            help:evaluate -Dexpression=project.version -DforceStdout)
+          if [[ "$release_ci_version" == *-SNAPSHOT ]]; then
+            ./scripts/test-release-tooling.sh development
+          else
+            ./scripts/test-release-tooling.sh stable-tag "v$release_ci_version"
+          fi
       - run: ./mvnw --batch-mode --no-transfer-progress verify
       - run: ./scripts/smoke-test.sh
 

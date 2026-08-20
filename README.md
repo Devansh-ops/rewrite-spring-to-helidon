@@ -18,6 +18,11 @@ separately reviewed steps.
 > pipeline. Always use an isolated branch, dry-run one leaf at a time, and compile and test the
 > affected module.
 
+> **Distribution status:** `0.2.0` remains a source-only GitHub release and has never been
+> published to Maven Central. The repository is currently on `0.2.1-SNAPSHOT` and includes a
+> protected, signed Central publication pipeline for the next release. See
+> [publishing to Maven Central](docs/publishing.md) for the credential gate and release process.
+
 ## In plain English
 
 This project first answers: “Where does this application depend on Spring, and which target API

@@ -41,6 +41,25 @@ Run focused tests while developing, followed by the complete suite:
 ./scripts/transaction-contract-test.sh
 ```
 
+Release-tooling changes must also pass:
+
+```bash
+./scripts/test-release-tooling.sh development
+```
+
+The development mode requires a `MAJOR.MINOR.PATCH-SNAPSHOT` project version and SCM tag `HEAD`.
+When reviewing prepared stable metadata, use the explicit tag instead:
+
+```bash
+./scripts/test-release-tooling.sh stable-tag v0.2.1
+```
+
+Before a stable tag is pushed, maintainers also run the upload-free two-build reproducibility check
+documented in [the Maven Central release process](docs/publishing.md).
+
+Publishing credentials and signing keys must never be used from a pull request or stored in the
+repository. Maintainers should follow [the protected Maven Central release process](docs/publishing.md).
+
 ## Pull requests
 
 Keep pull requests focused and explain the source semantics, target semantics, refusal boundary,
