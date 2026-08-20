@@ -6,7 +6,7 @@ Gradle projects, including large multi-module Maven reactors.
 
 This project is not affiliated with or endorsed by OpenRewrite, Spring, or Helidon.
 
-Version `0.1.0-SNAPSHOT` targets [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3).
+Version `0.1.0` targets [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3).
 It is intentionally a migration scaffold, not a one-command framework replacement.
 It automates source changes whose semantics can be preserved, adds a minimal Helidon
 foundation, and reports the Spring surface that still needs engineering work.
@@ -175,8 +175,8 @@ safe subset remain unchanged and receive a review marker.
 
 ## Quick start with Maven
 
-The snapshot is not assumed to be published. Build and install it into the local Maven
-repository first:
+Version `0.1.0` is distributed as source through GitHub Releases and is not published to Maven
+Central. Build and install it into the local Maven repository first:
 
 ```bash
 ./mvnw --batch-mode verify
@@ -187,7 +187,7 @@ From the target application's root, assess the code without changing it:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
@@ -201,7 +201,7 @@ Then preview the actual migration:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
@@ -214,7 +214,7 @@ scope.
 
 The Java source recipes can run through the OpenRewrite Gradle plugin. The v0.1 build recipe
 only edits Maven POMs, so Gradle dependency management and packaging must be migrated manually.
-After installing the snapshot locally, a Groovy build can load it as follows:
+After installing version `0.1.0` locally, a Groovy build can load it as follows:
 
 ```groovy
 plugins {
@@ -228,7 +228,7 @@ repositories {
 }
 
 dependencies {
-    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT'
+    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0'
 }
 
 rewrite {
