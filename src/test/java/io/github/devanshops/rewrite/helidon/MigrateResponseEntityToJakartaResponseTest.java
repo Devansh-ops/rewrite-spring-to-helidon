@@ -44,18 +44,18 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
             """
               package com.example.orders;
 
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
               import org.springframework.web.bind.annotation.GetMapping;
               import org.springframework.web.bind.annotation.RestController;
 
               @RestController
               public class OrderEndpoint {
                   @GetMapping("/orders")
-                  public ResponseEntity<String> get() {
-                      return ResponseEntity.ok("ok");
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> get() {
+                      return /*~~({{marker}})~~>*/ResponseEntity.ok("ok");
                   }
               }
-              """.formatted(MARKER)
+              """.replace("{{marker}}", MARKER)
           )
         );
     }
@@ -103,33 +103,33 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
               import java.net.URI;
               import java.util.List;
               import jakarta.ws.rs.Path;
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
 
               @Path("/orders")
               public class OrderEndpoint {
-                  public ResponseEntity<String> dynamicStatus(int status) {
-                      return ResponseEntity.status(status).body("dynamic");
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> dynamicStatus(int status) {
+                      return /*~~({{marker}})~~>*/ResponseEntity.status(status).body("dynamic");
                   }
 
-                  public ResponseEntity<String> outOfRangeStatus() {
-                      return ResponseEntity.status(700).body("extension");
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> outOfRangeStatus() {
+                      return /*~~({{marker}})~~>*/ResponseEntity.status(700).body("extension");
                   }
 
-                  public ResponseEntity<String> created(URI location) {
-                      return ResponseEntity.created(location).body("created");
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> created(URI location) {
+                      return /*~~({{marker}})~~>*/ResponseEntity.created(location).body("created");
                   }
 
-                  public ResponseEntity<List<Order>> genericEntity(List<Order> orders) {
-                      return ResponseEntity.ok(orders);
+                  public /*~~({{marker}})~~>*/ResponseEntity<List<Order>> genericEntity(List<Order> orders) {
+                      return /*~~({{marker}})~~>*/ResponseEntity.ok(orders);
                   }
 
-                  public ResponseEntity<String> literalNullBranch(String value) {
-                      return value == null ? ResponseEntity.ok(null) : ResponseEntity.ok(value);
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> literalNullBranch(String value) {
+                      return value == null ? /*~~({{marker}})~~>*/ResponseEntity.ok(null) : /*~~({{marker}})~~>*/ResponseEntity.ok(value);
                   }
               }
 
               class Order {}
-              """.formatted(MARKER)
+              """.replace("{{marker}}", MARKER)
           )
         );
     }
@@ -150,12 +150,12 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
             """
               package com.example.orders;
 
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
 
               public interface OrderContract {
-                  ResponseEntity<String> get();
+                  /*~~({{marker}})~~>*/ResponseEntity<String> get();
               }
-              """.formatted(MARKER),
+              """.replace("{{marker}}", MARKER),
             source -> source.path("api/src/main/java/com/example/orders/OrderContract.java")
           ),
           java(
@@ -174,15 +174,15 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
             """
               package com.example.orders;
 
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
 
               public class OrderEndpoint implements OrderContract {
                   @Override
-                  public ResponseEntity<String> get() {
-                      return ResponseEntity.ok("ok");
+                  public /*~~({{marker}})~~>*/ResponseEntity<String> get() {
+                      return /*~~({{marker}})~~>*/ResponseEntity.ok("ok");
                   }
               }
-              """.formatted(MARKER),
+              """.replace("{{marker}}", MARKER),
             source -> source.path("service/src/main/java/com/example/orders/OrderEndpoint.java")
           ),
           java(
@@ -200,14 +200,14 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
             """
               package com.example.orders;
 
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
 
               class OrderCaller {
-                  ResponseEntity<String> call(OrderContract endpoint) {
+                  /*~~({{marker}})~~>*/ResponseEntity<String> call(OrderContract endpoint) {
                       return endpoint.get();
                   }
               }
-              """.formatted(MARKER),
+              """.replace("{{marker}}", MARKER),
             source -> source.path("service/src/main/java/com/example/orders/OrderCaller.java")
           ),
           java(
@@ -225,14 +225,14 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
             """
               package com.example.orders;
 
-              /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~({{marker}})~~>*/import org.springframework.http.ResponseEntity;
 
               class OrderResponseHelper {
-                  ResponseEntity<String> build() {
-                      return ResponseEntity.ok("helper-value");
+                  /*~~({{marker}})~~>*/ResponseEntity<String> build() {
+                      return /*~~({{marker}})~~>*/ResponseEntity.ok("helper-value");
                   }
               }
-              """.formatted(MARKER),
+              """.replace("{{marker}}", MARKER),
             source -> source.path("service/src/main/java/com/example/orders/OrderResponseHelper.java")
           )
         );
@@ -252,14 +252,14 @@ public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
               }
               """,
             """
-              /*~~(%s)~~>*/package com.example.orders;
+              package com.example.orders;
 
               class OrderClient {
-                  org.springframework.http.ResponseEntity<String> fetch() {
-                      return org.springframework.http.ResponseEntity.ok("ok");
+                  org.springframework.http./*~~({{marker}})~~>*/ResponseEntity<String> fetch() {
+                      return org.springframework.http./*~~({{marker}})~~>*/ResponseEntity.ok("ok");
                   }
               }
-              """.formatted(MARKER)
+              """.replace("{{marker}}", MARKER)
           )
         );
     }

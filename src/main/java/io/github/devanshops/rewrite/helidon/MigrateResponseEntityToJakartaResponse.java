@@ -4,10 +4,10 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Preconditions;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
-import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.search.UsesType;
 import org.openrewrite.java.tree.J;
+import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.SearchResult;
 
 import java.time.Duration;
@@ -26,7 +26,7 @@ public class MigrateResponseEntityToJakartaResponse extends Recipe {
 
     @Override
     public String getDescription() {
-        return "Preserves each source file that uses Spring `ResponseEntity` and marks it for explicit " +
+        return "Preserves Spring `ResponseEntity` and marks its imports and attributed uses for explicit " +
                "response-contract migration because Jakarta REST status, header, entity-provider, and caller " +
                "semantics are not automatically equivalent.";
     }
@@ -42,18 +42,20 @@ public class MigrateResponseEntityToJakartaResponse extends Recipe {
                 new UsesType<>(SPRING_RESPONSE, false),
                 new JavaIsoVisitor<ExecutionContext>() {
                     @Override
-                    public J.CompilationUnit visitCompilationUnit(J.CompilationUnit compilationUnit,
-                                                                   ExecutionContext ctx) {
-                        J.CompilationUnit cu = super.visitCompilationUnit(compilationUnit, ctx);
-                        final boolean[] marked = new boolean[1];
-                        cu = cu.withImports(ListUtils.map(cu.getImports(), anImport -> {
-                            if (!marked[0] && SPRING_RESPONSE.equals(anImport.getTypeName())) {
-                                marked[0] = true;
-                                return SearchResult.found(anImport, MANUAL_MIGRATION);
-                            }
-                            return anImport;
-                        }));
-                        return marked[0] ? cu : SearchResult.found(cu, MANUAL_MIGRATION);
+                    public J.Import visitImport(J.Import anImport, ExecutionContext ctx) {
+                        J.Import visited = super.visitImport(anImport, ctx);
+                        return SPRING_RESPONSE.equals(visited.getTypeName()) ?
+                                SearchResult.found(visited, MANUAL_MIGRATION) : visited;
+                    }
+
+                    @Override
+                    public J.Identifier visitIdentifier(J.Identifier identifier, ExecutionContext ctx) {
+                        J.Identifier visited = super.visitIdentifier(identifier, ctx);
+                        if (getCursor().firstEnclosing(J.Import.class) != null ||
+                                !TypeUtils.isOfClassType(visited.getType(), SPRING_RESPONSE)) {
+                            return visited;
+                        }
+                        return SearchResult.found(visited, MANUAL_MIGRATION);
                     }
                 });
     }
