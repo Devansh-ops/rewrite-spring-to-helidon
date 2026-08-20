@@ -15,22 +15,89 @@ foundation, and reports the Spring surface that still needs engineering work.
 > does not promise a compiling or production-ready Helidon application, remove Spring,
 > or make architecture-specific choices on the application's behalf.
 
+## In plain English
+
+This project handles the first, mechanical part of moving a conventional Spring Boot REST
+application to Helidon MP. It can translate familiar annotations and APIs, add the minimum
+Helidon build and resource foundation, and produce a report of the Spring work that remains.
+
+It follows one safety rule: **when the recipe cannot prove that a change preserves behavior, it
+leaves that code on Spring and marks it for review.** The expected result is a partly migrated
+codebase and an actionable to-do list—not a finished production application.
+
+### What it can change automatically
+
+Each change below is made only when the surrounding class and module pass the recipe's safety
+checks.
+
+| Existing Spring code | Helidon MP-compatible result |
+| --- | --- |
+| `@Service` or `@Component` | CDI `@ApplicationScoped` and `@Named` |
+| Eligible `@Autowired` injection | Jakarta `@Inject` |
+| A zero-argument `@Bean(destroyMethod = "")` | CDI `@Produces`, `@Singleton`, and `@Named` |
+| A simple scalar `@Value` placeholder | MicroProfile `@ConfigProperty` |
+| A straightforward Spring MVC REST controller | Jakarta REST `@Path`, `@GET`, `@POST`, and related annotations |
+| Supported `ResponseEntity` builders | Jakarta REST `Response` |
+| A supported Spring transaction annotation | Jakarta Transactions `@Transactional` |
+| A plain Spring Boot launcher with no remaining Spring runtime work in its module | `io.helidon.Main.main(args)` |
+| An executable Maven module | Additive Helidon dependency management, MP core, CDI discovery, and an empty MP Config scaffold |
+
+The recipe does **not** automatically port security, repositories, application property files,
+messaging, reactive code, tests, or deployment architecture. It also does not remove Spring
+dependencies. The final report inventories remaining Spring types in source code; it is not a
+complete migration checklist. Configuration files, packaging, deployment architecture, test
+behavior, and other application-specific concerns require a separate manual audit.
+
+### Is this a good fit?
+
+| Good starting candidate | Expect mostly analysis and manual work |
+| --- | --- |
+| Spring Boot 4 or another modern Jakarta-compatible baseline | Spring Boot 2 or an application still using `javax.*` APIs |
+| Conventional Spring MVC REST services | WebFlux, Reactor, streaming, or heavily customized MVC |
+| `@Service`, `@Component`, `@Autowired`, and simple `@Value` usage | Extensive custom scopes, bean lifecycle hooks, AOP, or dynamic application-context access |
+| Maven projects, including multi-module reactors | Gradle projects needing automatic build migration |
+| A staged migration where each module will be compiled and tested | An expectation that one recipe run will produce a deployable Helidon application |
+
+### Recommended workflow
+
+```text
+Analyze without edits -> Review the report -> Preview a migration -> Apply one module -> Finish manual work
+```
+
+1. Run `AnalyzeSpringBootToHelidonMp` to inventory Spring usage without changing application
+   behavior.
+2. Review its patch markers and exported data tables, especially all `PARTIAL` and `MANUAL`
+   findings.
+3. Dry-run `SpringBoot4ToHelidonMp` and inspect every proposed change.
+4. Apply it to one executable module, then compile, test, and review security and configuration.
+5. Migrate the reported unsupported areas deliberately before removing Spring.
+
+The [quick start](#quick-start-with-maven) contains the commands for the first three steps.
+
 ## Target and prerequisites
 
-- JDK 21 or newer is required for a Helidon 4 application. Helidon recommends JDK 25+
-  for current development, but Java 21 is this project's minimum target.
-- Maven 3.8+ is recommended for target Maven builds.
-- The canonical source baseline is Spring Boot 4 on Jakarta EE 10-era APIs.
-- `SpringBootToHelidonMp` can also be used for another modern, Jakarta-compatible Spring
-  Boot baseline, but it currently delegates to the same Boot 4 migration composition.
-- The recipe library itself is built and tested with JDK 21.
+For the application being migrated:
+
+- use JDK 21 or newer; Helidon recommends JDK 25+ for current development, but Java 21 is
+  this project's minimum target;
+- use Maven 3.8+ if Maven build changes should be automated;
+- start from Spring Boot 4 on Jakarta APIs for the canonical path; and
+- ensure application dependencies resolve so OpenRewrite can identify Spring types accurately.
+
+The direct `SpringBootToHelidonMp` entry point can also assess another modern,
+Jakarta-compatible Spring Boot baseline, but it uses the same migration steps as the Boot 4
+recipe. Older Spring applications should be upgraded first. Building and testing this recipe
+library itself also requires JDK 21.
 
 Helidon MP 4 implements MicroProfile 6.1 and Jakarta EE 10 Core Profile APIs, including
 Jakarta REST 3.1, CDI 4.0, MicroProfile Config 3.1, Jakarta Transactions 2.0, Jakarta
 Validation 3.0, and Jakarta Persistence 3.1. Availability of an API does not imply that
 v0.1 migrates every Spring feature mapped to it.
 
-## Recipe catalog
+## Choose a top-level recipe
+
+Start with the analysis recipe. Use a migration recipe only after its report and a dry run have
+been reviewed.
 
 | Recipe | Purpose |
 | --- | --- |
@@ -58,9 +125,10 @@ SpringBoot4ToHelidonMp
 
 Resource discovery deliberately precedes entry-point migration, named-bean handling precedes
 the general DI conversion, and transaction/configuration injection run only after controller
-eligibility has been decided. The launcher changes only when production Spring runtime residue is
-clear in its module. Project-scoped safety scans run before edits in each OpenRewrite cycle, so the
-canonical recipe deliberately requests follow-up cycles before it replaces the runtime entry point.
+eligibility has been decided. The launcher changes only when no other production Spring runtime
+references remain in its module. Project-scoped safety scans run before edits in each OpenRewrite
+cycle, so the canonical recipe deliberately requests follow-up cycles before it replaces the
+runtime entry point.
 The final inventory measures Spring residue after the mechanical changes.
 
 See [the detailed automation boundary](docs/automation-boundary.md) for the exact supported
@@ -199,17 +267,33 @@ Existing files are never overwritten. The MicroProfile Config scaffold intention
 no host, port, or application values, so running the recipe cannot silently replace an
 application's environment-specific settings.
 
-## v0.1 demarcation
+## Exact v0.1 safety boundary
 
-The automated core covers common REST-service mechanics: class-atomic, proxy-safe CDI service/component stereotypes
-and injection; zero-argument singleton producers only when `@Bean` contains the literal lifecycle opt-out
-`destroyMethod = ""`; literal bean names and qualifiers; simple `@Value`
-placeholders with non-empty defaults for proven-equivalent scalar target types at proven CDI
-injection points; the safe subset of transaction annotations; controller-atomic Spring MVC
-conversion for public, proxyable resource shapes without Spring Web infrastructure in the module;
-common `ResponseEntity` builders inside proven REST resources; one structurally plain application
-launcher after same-module Spring runtime residue is clear; additive Maven preparation; and Helidon
-resources.
+The detailed rules below use a few OpenRewrite and CDI terms:
+
+- **Class-atomic** or **controller-atomic** means the whole class or controller is converted, or
+  none of it is. The recipe avoids leaving a half-Spring, half-CDI class.
+- **Proxy-safe** means CDI can construct, proxy, and intercept the class without a deployment-time
+  failure.
+- **Spring runtime residue** means Spring types, dependencies, or container behavior that the
+  application still needs at runtime.
+
+The automated core covers these REST-service mechanics:
+
+- class-atomic conversion of proxy-safe `@Service` and `@Component` beans and eligible injection
+  points;
+- zero-argument producers only when `@Bean` contains the literal lifecycle opt-out
+  `destroyMethod = ""`;
+- one literal bean name or qualifier;
+- simple `@Value` placeholders with non-empty defaults for equivalent scalar target types at
+  eligible CDI injection points;
+- the supported subset of transaction annotations;
+- controller-atomic MVC conversion for public, proxy-safe resource classes in modules without
+  unsupported Spring Web or Security infrastructure;
+- common `ResponseEntity` builders inside eligible REST resources;
+- one structurally plain application launcher after its module no longer needs the Spring runtime;
+  and
+- additive Maven preparation and missing Helidon resource scaffolds.
 
 The following remain explicit engineering work in v0.1:
 
