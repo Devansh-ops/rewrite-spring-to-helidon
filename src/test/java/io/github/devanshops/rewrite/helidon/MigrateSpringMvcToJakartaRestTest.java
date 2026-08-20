@@ -11,7 +11,7 @@ import static org.openrewrite.java.Assertions.java;
 class MigrateSpringMvcToJakartaRestTest implements RewriteTest {
 
     private static final String MARKER =
-            "Manual migration: v0.1 preserves this Spring MVC controller because routing, binding, validation, " +
+            "Manual migration: this assessment preserves the Spring MVC controller because routing, binding, validation, " +
             "and response semantics are not yet proven equivalent; no source code was changed";
 
     @Override

@@ -14,7 +14,7 @@ name: io.github.devanshops.rewrite.helidon.SpringBootToHelidonMpViaBoot4
 displayName: Upgrade to Spring Boot 4 and assess Helidon MP migration
 description: >-
   Optionally normalizes an application with the separately distributed Spring Boot 4 upgrade
-  recipe, then runs the independently implemented, assessment-only v0.1 Helidon MP entry point.
+  recipe, then runs the independently implemented, assessment-only v0.2 Helidon MP entry point.
 tags:
   - spring
   - helidon

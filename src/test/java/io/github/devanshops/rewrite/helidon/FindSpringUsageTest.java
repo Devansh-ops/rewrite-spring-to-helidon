@@ -106,7 +106,8 @@ class FindSpringUsageTest implements RewriteTest {
                                       "Externalized configuration", "MANUAL",
                                       "Explicit MicroProfile Config contract or compatibility adapter"),
                               tuple("org.springframework.transaction.annotation.Transactional",
-                                      "Transactions", "MANUAL", "Reviewed Jakarta transaction policy"),
+                                      "Transactions", "PARTIAL",
+                                      "io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta"),
                               tuple("org.springframework.web.bind.annotation.GetMapping",
                                       "Spring MVC", "MANUAL", "Jakarta REST annotations"));
           }),
@@ -141,7 +142,7 @@ class FindSpringUsageTest implements RewriteTest {
 
               /*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/import org.springframework.beans.factory.annotation.Autowired;
               /*~~(MANUAL: Externalized configuration -> Explicit MicroProfile Config contract or compatibility adapter)~~>*/import org.springframework.beans.factory.annotation.Value;
-              /*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/import org.springframework.transaction.annotation.Transactional;
+              /*~~(PARTIAL: Transactions -> io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta)~~>*/import org.springframework.transaction.annotation.Transactional;
               /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.GetMapping;
 
               class OrderEndpoint {
@@ -155,7 +156,7 @@ class FindSpringUsageTest implements RewriteTest {
                   String region;
 
                   @/*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/GetMapping("/orders")
-                  @/*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/Transactional
+                  @/*~~(PARTIAL: Transactions -> io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta)~~>*/Transactional
                   String orders() {
                       return region;
                   }

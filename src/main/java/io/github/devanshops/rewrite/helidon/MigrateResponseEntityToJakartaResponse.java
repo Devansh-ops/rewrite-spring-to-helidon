@@ -16,7 +16,7 @@ import java.time.Duration;
 public class MigrateResponseEntityToJakartaResponse extends Recipe {
     private static final String SPRING_RESPONSE = "org.springframework.http.ResponseEntity";
     static final String MANUAL_MIGRATION =
-            "Manual migration: v0.1 preserves ResponseEntity because status, headers, entity providers, and " +
+            "Manual migration: this assessment preserves ResponseEntity because status, headers, entity providers, and " +
             "caller contracts are not yet proven equivalent; no response types or builders were changed";
 
     @Override

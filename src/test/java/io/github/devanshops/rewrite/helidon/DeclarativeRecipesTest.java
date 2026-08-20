@@ -2,6 +2,8 @@ package io.github.devanshops.rewrite.helidon;
 
 import org.junit.jupiter.api.Test;
 import org.openrewrite.config.Environment;
+import org.openrewrite.config.ColumnDescriptor;
+import org.openrewrite.config.DataTableDescriptor;
 import org.openrewrite.config.RecipeDescriptor;
 
 import java.io.IOException;
@@ -34,7 +36,9 @@ class DeclarativeRecipesTest {
     void analysisAndGeneralAliasHaveSmallExplicitCompositions() {
         assertSingletonPrecondition(PREFIX + "AnalyzeSpringBootToHelidonMp");
         assertThat(children(PREFIX + "AnalyzeSpringBootToHelidonMp"))
-                .containsExactly(PREFIX + "FindSpringUsage");
+                .containsExactly(
+                        PREFIX + "FindSpringUsage",
+                        PREFIX + "FindSpringProjectUsage");
         assertSingletonPrecondition(PREFIX + "SpringBootToHelidonMp");
         assertThat(children(PREFIX + "SpringBootToHelidonMp"))
                 .containsExactly(PREFIX + "SpringBoot4ToHelidonMp");
@@ -44,13 +48,33 @@ class DeclarativeRecipesTest {
     void canonicalRecipeIsAssessmentOnlyUntilModuleAtomicMigrationExists() {
         assertSingletonPrecondition(PREFIX + "SpringBoot4ToHelidonMp");
         assertThat(children(PREFIX + "SpringBoot4ToHelidonMp"))
-                .containsExactly(PREFIX + "FindSpringUsage");
+                .containsExactly(
+                        PREFIX + "FindSpringUsage",
+                        PREFIX + "FindSpringProjectUsage");
     }
 
     @Test
     void canonicalCoreValidatesWithoutTheOptionalSpringArtifact() {
         assertThat(environment.activateRecipes(PREFIX + "SpringBoot4ToHelidonMp").validateAll())
                 .allMatch(validation -> validation.isValid());
+    }
+
+    @Test
+    void projectAssessmentPublishesTheStableSchemaAndPreservesTheLegacyTable() {
+        DataTableDescriptor assessment = descriptor(PREFIX + "FindSpringProjectUsage")
+                .getDataTables().stream()
+                .filter(table -> table.getName().endsWith("MigrationAssessmentTable"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("MigrationAssessmentTable was not published"));
+        assertThat(assessment.getColumns())
+                .extracting(ColumnDescriptor::getName)
+                .containsExactly(
+                        "sourcePath", "sourceKind", "feature", "construct", "supportLevel",
+                        "outcome", "reasonCode", "reason", "suggestedRecipeOrDirection");
+
+        assertThat(descriptor(PREFIX + "FindSpringUsage").getDataTables())
+                .extracting(DataTableDescriptor::getName)
+                .anyMatch(name -> name.endsWith("SpringUsageTable"));
     }
 
     @Test

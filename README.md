@@ -6,21 +6,26 @@ Gradle projects, including large multi-module Maven reactors.
 
 This project is not affiliated with or endorsed by OpenRewrite, Spring, or Helidon.
 
-Version `0.1.0` targets [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3).
-It is intentionally an assessment-first migration scaffold, not a one-command framework
-replacement. The canonical v0.1 recipe inventories Spring source usage and changes no application
-semantics, build files, resources, or runtime launcher. Bounded leaf recipes are available for
-deliberate, separately reviewed migration steps.
+The current release is `0.1.0`. The source branch is the unreleased `0.2.0-SNAPSHOT`; both target
+[Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3). This is intentionally
+an assessment-first migration scaffold, not a one-command framework replacement. The canonical
+recipe inventories Spring source and project usage and changes no application semantics, build
+files, resources, or runtime launcher. Bounded migration leaves are available for deliberate,
+separately reviewed steps.
 
-> **Preview status:** v0.1 does not provide a module-atomic runtime migration. Do not compose its
-> mutating leaf recipes as though they were a complete migration pipeline. Always use an isolated
-> branch, dry-run one leaf at a time, and compile and test the affected module.
+> **Preview status:** Neither v0.1 nor the v0.2 snapshot provides an application-wide atomic
+> runtime migration. Do not compose mutating leaf recipes as though they were a complete migration
+> pipeline. Always use an isolated branch, dry-run one leaf at a time, and compile and test the
+> affected module.
 
 ## In plain English
 
 This project first answers: “Where does this application depend on Spring, and which target API
-might replace each dependency?” It adds review markers to a dry-run patch and exports a data table.
-It does not change the running framework when you activate a top-level v0.1 recipe.
+might replace each dependency?” The top-level recipes export a Java type inventory and a bounded
+project-artifact inventory. They add precise review markers for Java and build constructs.
+Configuration files, registration metadata, and non-POM XML are table-only so their values and
+neighboring content are not reproduced in a dry-run patch. Activating a top-level recipe does not
+change the running framework.
 
 It follows one safety rule: **when the recipe cannot prove that a change preserves behavior, it
 leaves that code on Spring and marks it for review.** The expected canonical result is an actionable
@@ -28,8 +33,8 @@ inventory, not a partly converted or production-ready application.
 
 ### What the opt-in leaf recipes can change
 
-These transformations are not part of the canonical v0.1 recipe. Activate one explicitly only
-after reviewing its exact boundary and the surrounding module.
+These transformations are not part of the canonical recipe. Activate one explicitly only after
+reviewing its exact boundary and the surrounding module.
 
 | Existing Spring code | Helidon MP-compatible result |
 | --- | --- |
@@ -37,16 +42,22 @@ after reviewing its exact boundary and the surrounding module.
 | Eligible `@Autowired` injection | Jakarta `@Inject` |
 | A zero-argument `@Bean(destroyMethod = "")` | CDI `@Produces`, `@Singleton`, and `@Named` |
 | An executable Maven module, when the build/resource leaves are selected | Additive Helidon dependency management, MP core, CDI discovery, and an empty MP Config scaffold |
+| A direct, attributed Spring `@Transactional` that satisfies every v0.2 transaction preflight | Jakarta `@Transactional` with an equivalent transaction type and explicit rollback rules |
 
-Spring MVC, `ResponseEntity`, Spring transactions, Spring Boot launcher, and `@Value` leaf recipes
-are assessment-only in v0.1. They preserve source behavior and mark the relevant code for explicit
-migration. The CDI leaves also preserve an entire Spring bean when any member uses `@Value`.
+Spring MVC, `ResponseEntity`, Spring Boot launcher, and `@Value` leaf recipes remain
+assessment-only. The released v0.1 transaction leaf is also assessment-only. In the v0.2 source
+snapshot, `MigrateSpringTransactionalToJakarta` is a bounded migration for a deliberately narrow
+transaction subset, and `MigrateSpringTransactionalToJakartaIncludingSupports` is a separate
+opt-in for the additional SUPPORTS policy. The CDI leaves preserve an entire Spring bean when any
+member uses `@Value`.
 
 The recipe does **not** automatically port security, repositories, application property files,
 messaging, reactive code, tests, or deployment architecture. It also does not remove Spring
-dependencies. The final report inventories remaining Spring types in source code; it is not a
-complete migration checklist. Configuration files, packaging, deployment architecture, test
-behavior, and other application-specific concerns require a separate manual audit.
+dependencies. The combined reports inventory remaining Spring types and bounded build,
+configuration, XML, metadata, and test evidence; they are not a complete migration checklist or
+runtime-readiness certification. Packaging, deployment architecture, runtime-generated behavior,
+inherited external configuration, and other application-specific concerns require a separate
+manual audit.
 
 ### Is this a good fit?
 
@@ -65,7 +76,7 @@ Assess without semantic edits -> Review the report -> Select one leaf -> Dry-run
 ```
 
 1. Run `AnalyzeSpringBootToHelidonMp` or the compatibility entry point
-   `SpringBoot4ToHelidonMp`; both are assessment-only in v0.1.
+   `SpringBoot4ToHelidonMp`; both remain assessment-only in v0.2.
 2. Review its patch markers and exported data tables, especially all `PARTIAL` and `MANUAL`
    findings.
 3. Choose one directly activatable leaf recipe whose documented boundary matches the module.
@@ -86,24 +97,24 @@ For the application being migrated:
 - ensure application dependencies resolve so OpenRewrite can identify Spring types accurately.
 
 The direct `SpringBootToHelidonMp` entry point can also assess another modern,
-Jakarta-compatible Spring Boot baseline, but it uses the same migration steps as the Boot 4
+Jakarta-compatible Spring Boot baseline, but it uses the same assessment steps as the Boot 4
 recipe. Older Spring applications should be upgraded first. Building and testing this recipe
 library itself also requires JDK 21.
 
 Helidon MP 4 implements MicroProfile 6.1 and Jakarta EE 10 Core Profile APIs, including
 Jakarta REST 3.1, CDI 4.0, MicroProfile Config 3.1, Jakarta Transactions 2.0, Jakarta
-Validation 3.0, and Jakarta Persistence 3.1. Availability of an API does not imply that
-v0.1 migrates every Spring feature mapped to it.
+Validation 3.0, and Jakarta Persistence 3.1. Availability of an API does not imply that this
+project migrates every Spring feature mapped to it.
 
 ## Choose a top-level recipe
 
-Start with either assessment entry point. They intentionally have the same v0.1 behavior; the
+Start with either assessment entry point. They intentionally have the same v0.2 behavior; the
 additional names preserve a stable path for later bounded compositions.
 
 | Recipe | Purpose |
 | --- | --- |
-| `io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp` | Finds Spring types, adds source markers in the dry-run patch, and exports a support-level data table without changing application semantics. |
-| `io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp` | Canonical, fail-closed v0.1 assessment for applications already on Spring Boot 4; changes no source semantics, build files, resources, or launcher. |
+| `io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp` | Inventories Spring Java types and bounded project artifacts without changing application semantics. Java/build evidence is marked; configuration, registration metadata, and non-POM XML are table-only. |
+| `io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp` | Canonical, fail-closed assessment for applications already on Spring Boot 4; changes no source semantics, build files, resources, or launcher. |
 | `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMp` | General assessment alias for applications already on a modern Jakarta-compatible Spring baseline. |
 | `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMpViaBoot4` | Optional wrapper that first runs the separately supplied Spring Boot 4 upgrade recipe, then assesses the result. The upstream upgrade is a real source/build mutation. See [licensing](#optional-spring-boot-4-normalization-and-licensing). |
 
@@ -112,12 +123,13 @@ The canonical composition runs in this order:
 ```text
 SpringBoot4ToHelidonMp
   1. FindSpringUsage
+  2. FindSpringProjectUsage
 ```
 
 Earlier prototypes composed independent source, build, resource, and launcher transformations.
 That can create a broken hybrid when one Spring bean converts to CDI while unsupported Spring code
-keeps the Spring runtime active. Until a module-wide atomic preflight exists, v0.1 keeps those
-mutations out of the canonical recipe.
+keeps the Spring runtime active. Until an application-wide atomic preflight exists, v0.2 keeps
+those mutations out of the canonical recipe.
 
 See [the detailed automation boundary](docs/automation-boundary.md) for the exact supported
 subsets and manual-review cases.
@@ -130,13 +142,15 @@ ready to leave Spring.
 | --- | --- |
 | `AddHelidonMpResources` | Opt-in: adds missing CDI and MicroProfile Config scaffolds to executable modules. |
 | `FindSpringUsage` | Marks and exports a classified inventory of remaining Spring types. |
+| `FindSpringProjectUsage` | Exports occurrence-level bounded Maven, Gradle, Java source-set, configuration, XML, and Spring registration metadata evidence without changing semantics. |
 | `PrepareMavenBuildForHelidonMp` | Opt-in: adds Helidon dependency management and MP core without removing Spring. |
-| `MigrateResponseEntityToJakartaResponse` | Assessment-only in v0.1: preserves and marks `ResponseEntity` use. |
-| `MigrateSpringBootMain` | Assessment-only in v0.1: preserves and marks Spring Boot startup. |
+| `MigrateResponseEntityToJakartaResponse` | Assessment-only: preserves and marks `ResponseEntity` use. |
+| `MigrateSpringBootMain` | Assessment-only: preserves and marks Spring Boot startup. |
 | `MigrateSpringDiToCdi` | Opt-in: converts a locally proxy-safe subset of stereotypes, injection points, and producers to CDI. |
-| `MigrateSpringMvcToJakartaRest` | Assessment-only in v0.1: preserves and marks Spring MVC REST controllers. |
+| `MigrateSpringMvcToJakartaRest` | Assessment-only: preserves and marks Spring MVC REST controllers. |
 | `MigrateSpringNamedBeansToCdi` | Opt-in: converts a locally safe named-bean subset to CDI `@Named`. |
-| `MigrateSpringTransactionalToJakarta` | Assessment-only in v0.1: preserves and marks direct Spring transaction annotations; composed usages need a separate audit. |
+| `MigrateSpringTransactionalToJakarta` | v0.2 source opt-in: migrates a module-gated, class-hierarchy-atomic subset of direct Spring transaction annotations; otherwise records a refusal and preserves the whole affected hierarchy. Released v0.1 remains assessment-only. |
+| `MigrateSpringTransactionalToJakartaIncludingSupports` | v0.2 source opt-in: runs the same transaction preflight and additionally accepts the documented SUPPORTS synchronization-scope difference. |
 | `MigrateSpringValueToConfigProperty` | Preserves and marks every `@Value` injection point for explicit configuration-contract migration. |
 
 For example, this service is deliberately not half-converted:
@@ -164,14 +178,15 @@ class CatalogService {
 }
 ```
 
-The public leaf recipe ID remains available for compatibility, but it is assessment/refusal-only in
-v0.1. A later bounded or compatibility-generating recipe can automate this after proving the
-source and target configuration semantics.
+The public `@Value` leaf recipe ID remains available for compatibility, but it is
+assessment/refusal-only. A later bounded or compatibility-generating recipe can automate this
+after proving the source and target configuration semantics.
 
 ## Quick start with Maven
 
 Version `0.1.0` is distributed as source through GitHub Releases and is not published to Maven
-Central. Build and install it into the local Maven repository first:
+Central. Download its source archive or check out tag `v0.1.0`, then build and install it into the
+local Maven repository:
 
 ```bash
 ./mvnw --batch-mode verify
@@ -208,6 +223,30 @@ leaf's fully qualified ID, keep `dryRun`, and review its section in
 [the detailed automation boundary](docs/automation-boundary.md). Apply it only in an isolated branch
 or worktree and validate one executable module before widening the scope.
 
+### Try the unreleased v0.2 snapshot from source
+
+The v0.2 transaction migration is not in the `0.1.0` release. From a checkout of this repository's
+v0.2 source, verify and install `0.2.0-SNAPSHOT` locally:
+
+```bash
+./mvnw --batch-mode verify
+./mvnw --batch-mode install
+```
+
+Then dry-run the bounded base transaction recipe from the target application's root:
+
+```bash
+mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.2.0-SNAPSHOT \
+  -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta \
+  -Drewrite.exportDatatables=true
+```
+
+The dry run either shows a complete migration for an eligible source-visible class hierarchy or
+preserves its Spring annotations and emits stable refusal reason codes. Use
+`MigrateSpringTransactionalToJakartaIncludingSupports` only after accepting the SUPPORTS boundary
+described below. Neither transaction leaf is part of a top-level recipe.
+
 ## Gradle consumption
 
 The Java source recipes can run through the OpenRewrite Gradle plugin. The v0.1 build recipe
@@ -241,7 +280,7 @@ its patch to `build/reports/rewrite/rewrite.patch` and exported data tables bene
 
 ## Build and resource behavior
 
-The build and resource recipes below are direct opt-ins and are **not** in the canonical v0.1
+The build and resource recipes below are direct opt-ins and are **not** in the canonical v0.2
 composition. Adding target dependencies can change dependency mediation even though nothing is
 removed, so review and test the affected reactor.
 
@@ -269,21 +308,82 @@ Existing files are never overwritten. The MicroProfile Config scaffold intention
 no host, port, or application values, so running the recipe cannot silently replace an
 application's environment-specific settings.
 
-## Exact v0.1 safety boundary
+## Bounded transaction migration in v0.2
 
-The canonical v0.1 guarantee is intentionally small:
+`MigrateSpringTransactionalToJakarta` is a directly activated bounded migration. In plain English,
+it changes Spring's annotation only when it can see enough of the module and the connected class
+hierarchy to preserve the supported behavior. If one annotation in that atomic scope is unsafe,
+the recipe preserves every Spring transaction annotation in the scope and reports why.
 
-- it runs `FindSpringUsage` only;
-- it adds search markers and exports one classified row per Spring type per Java source file; and
+The base recipe supports direct, attributed annotations on interceptable CDI beans in main source
+for these Spring propagation modes:
+
+- the default and explicit `REQUIRED`;
+- `REQUIRES_NEW`;
+- `MANDATORY`;
+- `NOT_SUPPORTED`; and
+- `NEVER`.
+
+It maps them to Jakarta Transactions 2.0 transaction types. It also makes Spring's Error rollback
+default explicit, honors a resolved Spring 7 `ALL_EXCEPTIONS` global default, and carries local
+type-based `rollbackFor` and `noRollbackFor` rules only when their precedence remains equivalent.
+Explicit Spring default values are normalized rather than treated as custom policy.
+
+The base recipe deliberately refuses SUPPORTS because Spring can create a non-transactional
+resource-synchronization scope where Jakarta Transactions promises only that no transaction is
+started. `MigrateSpringTransactionalToJakartaIncludingSupports` has the same scanner, atomicity,
+rollback handling, and refusal gates; its only policy difference is accepting that SUPPORTS
+synchronization-scope difference. It maps SUPPORTS both when joining an active transaction and
+when running without one.
+
+Both recipes preserve the affected hierarchy and emit a marker plus a
+`MigrationAssessmentTable` row with a stable reason code when they encounter any of these
+boundaries:
+
+- test-managed transactions, composed annotations, missing type attribution, an external or
+  unresolved hierarchy, or an existing Jakarta `@Transactional` on the same target;
+- a non-CDI or non-interceptable target, class-level advice governing an unsafe member, lifecycle
+  callbacks, direct `UserTransaction` use, or reactive return types;
+- `NESTED`, unresolved propagation, non-default isolation, timeout, read-only, labels, manager
+  selection, string-pattern rollback rules, unattributed rollback classes, or rollback precedence
+  that Jakarta cannot preserve;
+- unresolved, conflicting, custom, or AspectJ global transaction policy;
+- multiple or qualified transaction managers, reactive managers/APIs, programmatic transaction
+  policy, or Spring XML transaction advice; and
+- source code coupled to Spring's transaction-state exceptions for MANDATORY or NEVER.
+
+This is fail-closed behavior: a refusal is a deliberate preservation, not a partial conversion or
+an accidental skip. The transaction leaves do not configure a datasource, select a transaction
+provider, convert transaction-manager beans or XML, remove Spring, or prove that the application is
+ready to switch runtimes. See [the exact transaction boundary](docs/automation-boundary.md#bounded-transaction-migration)
+for the complete contract.
+
+The deterministic H2 contract fixture executes the supported behavior first on Spring Boot 4.1.0
+and then on rewritten source compiled and run with Helidon MP 4.5.3. It covers propagation,
+commit/rollback behavior, safe rollback-rule precedence, source compilation, and absence of Spring
+source and runtime dependencies. The separately activated SUPPORTS fixture compares the common
+transaction behavior while explicitly excluding Spring's extra synchronization-scope observation.
+The fixture uses pinned provider assumptions; it is evidence for this bounded recipe, not a promise
+about an application's datasource, transaction manager, or deployment environment.
+
+## Exact canonical safety boundary
+
+The canonical guarantee is intentionally small:
+
+- it runs `FindSpringUsage` and `FindSpringProjectUsage`;
+- it exports one classified Java row per Spring type per source file plus occurrence-level bounded
+  project evidence;
+- it marks Java and build occurrences while keeping configuration, registration metadata, and
+  non-POM XML table-only; and
 - it does not change application semantics, POMs, resources, dependencies, or launchers.
 
-The directly activatable CDI leaves contain bounded transformations. The build and resource leaves
-provide additive scaffolding. MVC, `ResponseEntity`, transactions, `@Value`, and launcher leaves are
-assessment-only in v0.1. None of these leaf-level decisions proves that an entire module can switch
-runtimes atomically, and combining mutations can create a broken Spring/CDI hybrid. Treat the leaves
-as independent engineering tools, not as a complete pipeline.
+The directly activatable CDI and v0.2 transaction leaves contain bounded migrations. The build and
+resource leaves provide additive scaffolding. MVC, `ResponseEntity`, `@Value`, and launcher leaves
+remain assessment-only. None of these leaf-level decisions proves that an entire application can
+switch runtimes atomically, and combining mutations can create a broken Spring/CDI hybrid. Treat
+the leaves as independent engineering tools, not as a complete pipeline.
 
-The following remain explicit engineering work in v0.1:
+The following remain explicit engineering work in v0.2:
 
 - Spring Security and authorization semantics;
 - Spring `@Repository` persistence-exception translation;
@@ -299,9 +399,10 @@ The following remain explicit engineering work in v0.1:
 - Spring scopes, profiles, conditions, imports, component scans, property sources, lazy beans,
   dependency ordering, and other container lifecycle semantics;
 - static `@Autowired` injection;
-- transaction rollback rules, propagation, isolation, timeout, read-only hints, labels, manager
-  selection, class-local partial conversion, reactive managers, `UserTransaction`, AspectJ mode,
-  and explicit global transaction-management settings;
+- transaction isolation, timeout, read-only hints, labels, manager routing, XML/programmatic
+  policy, reactive managers, `UserTransaction`, AspectJ mode, composed annotations, test-managed
+  transactions, unsafe rollback precedence, and any hierarchy the transaction preflight cannot
+  resolve completely;
 - every bare Spring `@Value` injection point, including simple scalars, because Spring and
   MicroProfile Config differ for missing values, empty values, scalar conversion, and custom
   converters;
@@ -313,7 +414,7 @@ The following remain explicit engineering work in v0.1:
 - final Spring dependency removal and residue enforcement.
 
 The canonical recipe leaves all Spring code in place and adds search markers instead of guessing.
-There is no module-atomic runtime switch or Spring-removal finalizer in v0.1.
+There is no application-wide atomic runtime switch or Spring-removal finalizer in v0.2.
 
 ## Optional Spring Boot 4 normalization and licensing
 
@@ -342,14 +443,18 @@ Use JDK 21 and the checksum-pinned Maven Wrapper:
 ./mvnw verify
 ./mvnw -Dtest=FindSpringUsageTest test
 ./mvnw -Dtest=AddHelidonMpResourcesTest test
+./mvnw -Dtest=MigrateSpringTransactionalToJakartaTest,MigrateSpringTransactionalToJakartaIncludingSupportsTest test
 ./mvnw install
 ./scripts/smoke-test.sh
+./scripts/transaction-contract-test.sh
 ```
 
 Recipe implementations live under `src/main/java`, declarative compositions under
 `src/main/resources/META-INF/rewrite`, and focused `RewriteTest` cases under `src/test/java`.
 When adding automation, include both a successful conversion test and a test proving that
-unsupported semantics are preserved and marked for review.
+unsupported semantics are preserved and marked for review. The transaction contract installs the
+current snapshot locally, creates generated source under an operating-system temporary directory,
+and runs deterministic Spring Boot and Helidon MP H2 fixtures; allow time for both nested reactors.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete contribution contract,
 [SECURITY.md](SECURITY.md) for private vulnerability reporting, [CHANGELOG.md](CHANGELOG.md)
