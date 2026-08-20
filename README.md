@@ -36,12 +36,11 @@ after reviewing its exact boundary and the surrounding module.
 | `@Service` or `@Component` | CDI `@ApplicationScoped` and `@Named` |
 | Eligible `@Autowired` injection | Jakarta `@Inject` |
 | A zero-argument `@Bean(destroyMethod = "")` | CDI `@Produces`, `@Singleton`, and `@Named` |
-| A bare default Spring transaction annotation on an eligible CDI bean | Jakarta Transactions `@Transactional(rollbackOn = Error.class)` |
 | An executable Maven module, when the build/resource leaves are selected | Additive Helidon dependency management, MP core, CDI discovery, and an empty MP Config scaffold |
 
-Spring MVC, `ResponseEntity`, Spring Boot launcher, and `@Value` leaf recipes are assessment-only in
-v0.1. They preserve source behavior and mark the relevant code for explicit migration. The CDI
-leaves also preserve an entire Spring bean when any member uses `@Value`.
+Spring MVC, `ResponseEntity`, Spring transactions, Spring Boot launcher, and `@Value` leaf recipes
+are assessment-only in v0.1. They preserve source behavior and mark the relevant code for explicit
+migration. The CDI leaves also preserve an entire Spring bean when any member uses `@Value`.
 
 The recipe does **not** automatically port security, repositories, application property files,
 messaging, reactive code, tests, or deployment architecture. It also does not remove Spring
@@ -137,7 +136,7 @@ ready to leave Spring.
 | `MigrateSpringDiToCdi` | Opt-in: converts a locally proxy-safe subset of stereotypes, injection points, and producers to CDI. |
 | `MigrateSpringMvcToJakartaRest` | Assessment-only in v0.1: preserves and marks Spring MVC REST controllers. |
 | `MigrateSpringNamedBeansToCdi` | Opt-in: converts a locally safe named-bean subset to CDI `@Named`. |
-| `MigrateSpringTransactionalToJakarta` | Opt-in: converts only bare default Spring transactions on proven CDI beans and marks all other transaction semantics. |
+| `MigrateSpringTransactionalToJakarta` | Assessment-only in v0.1: preserves and marks direct Spring transaction annotations; composed usages need a separate audit. |
 | `MigrateSpringValueToConfigProperty` | Preserves and marks every `@Value` injection point for explicit configuration-contract migration. |
 
 For example, this service is deliberately not half-converted:
@@ -278,11 +277,11 @@ The canonical v0.1 guarantee is intentionally small:
 - it adds search markers and exports one classified row per Spring type per Java source file; and
 - it does not change application semantics, POMs, resources, dependencies, or launchers.
 
-The directly activatable CDI and transaction leaves contain bounded transformations. The build and
-resource leaves provide additive scaffolding. MVC, `ResponseEntity`, `@Value`, and launcher leaves
-are assessment-only in v0.1. None of these leaf-level decisions proves that an entire module can
-switch runtimes atomically, and combining them can create a broken Spring/CDI hybrid. Treat them as
-independent engineering tools, not as a complete pipeline.
+The directly activatable CDI leaves contain bounded transformations. The build and resource leaves
+provide additive scaffolding. MVC, `ResponseEntity`, transactions, `@Value`, and launcher leaves are
+assessment-only in v0.1. None of these leaf-level decisions proves that an entire module can switch
+runtimes atomically, and combining mutations can create a broken Spring/CDI hybrid. Treat the leaves
+as independent engineering tools, not as a complete pipeline.
 
 The following remain explicit engineering work in v0.1:
 

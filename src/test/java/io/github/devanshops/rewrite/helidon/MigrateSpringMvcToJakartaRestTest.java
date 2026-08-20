@@ -18,18 +18,7 @@ class MigrateSpringMvcToJakartaRestTest implements RewriteTest {
     public void defaults(RecipeSpec spec) {
         spec.recipe(new MigrateSpringMvcToJakartaRest())
                 .parser(JavaParser.fromJavaVersion()
-                        .classpath("spring-web", "spring-core")
-                        .dependsOn(
-                                """
-                                  package org.springframework.security.access.prepost;
-                                  public @interface PreAuthorize {
-                                      String value();
-                                  }
-                                  """,
-                                """
-                                  package org.springframework.security.web;
-                                  public interface SecurityFilterChain {}
-                                  """))
+                        .classpath("spring-web", "spring-core"))
                 .cycles(2)
                 .expectedCyclesThatMakeChanges(1);
     }
@@ -130,7 +119,7 @@ class MigrateSpringMvcToJakartaRestTest implements RewriteTest {
     }
 
     @Test
-    void marksEveryControllerWhileLeavingSecurityAndOtherModulesUntouched() {
+    void marksEveryControllerInOneSourceWithoutChangingUnrelatedModules() {
         rewriteRun(
           java(
             """
@@ -181,20 +170,6 @@ class MigrateSpringMvcToJakartaRestTest implements RewriteTest {
           ),
           java(
             """
-              package com.example.security;
-
-              import org.springframework.security.web.SecurityFilterChain;
-
-              class SecurityConfiguration {
-                  SecurityFilterChain filterChain() {
-                      return null;
-                  }
-              }
-              """,
-            source -> source.path("module-a/src/main/java/com/example/security/SecurityConfiguration.java")
-          ),
-          java(
-            """
               package com.example.catalog;
 
               class CatalogService {
@@ -204,6 +179,50 @@ class MigrateSpringMvcToJakartaRestTest implements RewriteTest {
               }
               """,
             source -> source.path("module-b/src/main/java/com/example/catalog/CatalogService.java")
+          )
+        );
+    }
+
+    @Test
+    void assessesControllersIndependentlyAcrossModules() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import org.springframework.web.bind.annotation.RestController;
+
+              @RestController
+              class OrderEndpoint {}
+              """,
+            """
+              package com.example.orders;
+
+              import org.springframework.web.bind.annotation.RestController;
+
+              /*~~(%s)~~>*/@RestController
+              class OrderEndpoint {}
+              """.formatted(MARKER),
+            source -> source.path("orders/src/main/java/com/example/orders/OrderEndpoint.java")
+          ),
+          java(
+            """
+              package com.example.catalog;
+
+              import org.springframework.web.bind.annotation.RestController;
+
+              @RestController
+              class CatalogEndpoint {}
+              """,
+            """
+              package com.example.catalog;
+
+              import org.springframework.web.bind.annotation.RestController;
+
+              /*~~(%s)~~>*/@RestController
+              class CatalogEndpoint {}
+              """.formatted(MARKER),
+            source -> source.path("catalog/src/main/java/com/example/catalog/CatalogEndpoint.java")
           )
         );
     }

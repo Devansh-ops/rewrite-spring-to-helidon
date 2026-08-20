@@ -8,11 +8,9 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
-class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
+public class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
 
-    private static final String MARKER =
-            "Manual migration: v0.1 preserves ResponseEntity because status, headers, entity providers, and " +
-            "caller contracts are not yet proven equivalent; no response types or builders were changed";
+    private static final String MARKER = MigrateResponseEntityToJakartaResponse.MANUAL_MIGRATION;
 
     @Override
     public void defaults(RecipeSpec spec) {
@@ -137,7 +135,7 @@ class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
     }
 
     @Test
-    void preservesResponseContractsAcrossInterfaceImplementationCallerAndNonEndpointService() {
+    void preservesResponseContractsAcrossInterfaceImplementationCallerAndHelper() {
         rewriteRun(
           java(
             """
@@ -218,9 +216,9 @@ class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
 
               import org.springframework.http.ResponseEntity;
 
-              class OrderClientService {
-                  ResponseEntity<String> fetch() {
-                      return ResponseEntity.ok("client-value");
+              class OrderResponseHelper {
+                  ResponseEntity<String> build() {
+                      return ResponseEntity.ok("helper-value");
                   }
               }
               """,
@@ -229,13 +227,13 @@ class MigrateResponseEntityToJakartaResponseTest implements RewriteTest {
 
               /*~~(%s)~~>*/import org.springframework.http.ResponseEntity;
 
-              class OrderClientService {
-                  ResponseEntity<String> fetch() {
-                      return ResponseEntity.ok("client-value");
+              class OrderResponseHelper {
+                  ResponseEntity<String> build() {
+                      return ResponseEntity.ok("helper-value");
                   }
               }
               """.formatted(MARKER),
-            source -> source.path("client/src/main/java/com/example/orders/OrderClientService.java")
+            source -> source.path("service/src/main/java/com/example/orders/OrderResponseHelper.java")
           )
         );
     }

@@ -106,7 +106,7 @@ class FindSpringUsageTest implements RewriteTest {
                                       "Externalized configuration", "MANUAL",
                                       "Explicit MicroProfile Config contract or compatibility adapter"),
                               tuple("org.springframework.transaction.annotation.Transactional",
-                                      "Transactions", "PARTIAL", "jakarta.transaction.Transactional"),
+                                      "Transactions", "MANUAL", "Reviewed Jakarta transaction policy"),
                               tuple("org.springframework.web.bind.annotation.GetMapping",
                                       "Spring MVC", "MANUAL", "Jakarta REST annotations"));
           }),
@@ -141,7 +141,7 @@ class FindSpringUsageTest implements RewriteTest {
 
               /*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/import org.springframework.beans.factory.annotation.Autowired;
               /*~~(MANUAL: Externalized configuration -> Explicit MicroProfile Config contract or compatibility adapter)~~>*/import org.springframework.beans.factory.annotation.Value;
-              /*~~(PARTIAL: Transactions -> jakarta.transaction.Transactional)~~>*/import org.springframework.transaction.annotation.Transactional;
+              /*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/import org.springframework.transaction.annotation.Transactional;
               /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.GetMapping;
 
               class OrderEndpoint {
@@ -155,7 +155,7 @@ class FindSpringUsageTest implements RewriteTest {
                   String region;
 
                   @/*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/GetMapping("/orders")
-                  @/*~~(PARTIAL: Transactions -> jakarta.transaction.Transactional)~~>*/Transactional
+                  @/*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/Transactional
                   String orders() {
                       return region;
                   }

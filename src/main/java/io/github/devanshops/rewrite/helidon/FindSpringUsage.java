@@ -390,7 +390,7 @@ public final class FindSpringUsage extends Recipe {
                     "Explicit MicroProfile Config contract or compatibility adapter");
         }
         if ("org.springframework.transaction.annotation.Transactional".equals(typeName)) {
-            return partial("Transactions", "jakarta.transaction.Transactional");
+            return manual("Transactions", "Reviewed Jakarta transaction policy");
         }
         if (isOneOf(typeName,
                 "org.springframework.web.bind.annotation.RestController",
@@ -467,7 +467,7 @@ public final class FindSpringUsage extends Recipe {
             return manual("Spring MVC", "Jakarta REST or a Helidon web API");
         }
         if (typeName.startsWith("org.springframework.transaction.")) {
-            return partial("Transactions", "Jakarta Transactions");
+            return manual("Transactions", "Reviewed Jakarta transaction policy");
         }
         if (typeName.startsWith("org.springframework.beans.") ||
             typeName.startsWith("org.springframework.context.") ||
