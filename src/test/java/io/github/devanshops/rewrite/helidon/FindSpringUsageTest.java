@@ -88,7 +88,7 @@ class FindSpringUsageTest implements RewriteTest {
 
     @DocumentExample
     @Test
-    void classifiesAutomaticTypesAndDeduplicatesRows() {
+    void classifiesBoundedAndManualTypesAndDeduplicatesRows() {
         rewriteRun(
           spec -> spec.dataTable(SpringUsageTable.Row.class, rows -> {
               assertThat(rows).hasSize(4);
@@ -101,14 +101,14 @@ class FindSpringUsageTest implements RewriteTest {
                               SpringUsageTable.Row::getSuggestedReplacement)
                       .containsExactlyInAnyOrder(
                               tuple("org.springframework.beans.factory.annotation.Autowired",
-                                      "Dependency injection", "AUTOMATIC", "Jakarta CDI and jakarta.inject"),
+                                      "Dependency injection", "PARTIAL", "Jakarta CDI and jakarta.inject"),
                               tuple("org.springframework.beans.factory.annotation.Value",
-                                      "Externalized configuration", "AUTOMATIC",
-                                      "MicroProfile Config @ConfigProperty"),
+                                      "Externalized configuration", "MANUAL",
+                                      "Explicit MicroProfile Config contract or compatibility adapter"),
                               tuple("org.springframework.transaction.annotation.Transactional",
-                                      "Transactions", "AUTOMATIC", "jakarta.transaction.Transactional"),
+                                      "Transactions", "MANUAL", "Reviewed Jakarta transaction policy"),
                               tuple("org.springframework.web.bind.annotation.GetMapping",
-                                      "Spring MVC", "AUTOMATIC", "Jakarta REST annotations"));
+                                      "Spring MVC", "MANUAL", "Jakarta REST annotations"));
           }),
           java(
             """
@@ -139,23 +139,23 @@ class FindSpringUsageTest implements RewriteTest {
             """
               package com.acme;
 
-              /*~~(AUTOMATIC: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/import org.springframework.beans.factory.annotation.Autowired;
-              /*~~(AUTOMATIC: Externalized configuration -> MicroProfile Config @ConfigProperty)~~>*/import org.springframework.beans.factory.annotation.Value;
-              /*~~(AUTOMATIC: Transactions -> jakarta.transaction.Transactional)~~>*/import org.springframework.transaction.annotation.Transactional;
-              /*~~(AUTOMATIC: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.GetMapping;
+              /*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/import org.springframework.beans.factory.annotation.Autowired;
+              /*~~(MANUAL: Externalized configuration -> Explicit MicroProfile Config contract or compatibility adapter)~~>*/import org.springframework.beans.factory.annotation.Value;
+              /*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/import org.springframework.transaction.annotation.Transactional;
+              /*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/import org.springframework.web.bind.annotation.GetMapping;
 
               class OrderEndpoint {
-                  @/*~~(AUTOMATIC: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/Autowired
+                  @/*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/Autowired
                   Object firstDependency;
 
-                  @/*~~(AUTOMATIC: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/Autowired
+                  @/*~~(PARTIAL: Dependency injection -> Jakarta CDI and jakarta.inject)~~>*/Autowired
                   Object secondDependency;
 
-                  @/*~~(AUTOMATIC: Externalized configuration -> MicroProfile Config @ConfigProperty)~~>*/Value("${orders.region}")
+                  @/*~~(MANUAL: Externalized configuration -> Explicit MicroProfile Config contract or compatibility adapter)~~>*/Value("${orders.region}")
                   String region;
 
-                  @/*~~(AUTOMATIC: Spring MVC -> Jakarta REST annotations)~~>*/GetMapping("/orders")
-                  @/*~~(AUTOMATIC: Transactions -> jakarta.transaction.Transactional)~~>*/Transactional
+                  @/*~~(MANUAL: Spring MVC -> Jakarta REST annotations)~~>*/GetMapping("/orders")
+                  @/*~~(MANUAL: Transactions -> Reviewed Jakarta transaction policy)~~>*/Transactional
                   String orders() {
                       return region;
                   }
@@ -175,15 +175,15 @@ class FindSpringUsageTest implements RewriteTest {
                                   SpringUsageTable.Row::getSupportLevel)
                           .containsExactlyInAnyOrder(
                                   tuple("org.springframework.boot.actuate.health.HealthIndicator",
-                                          "Spring Boot Actuator", "PARTIAL"),
+                                          "Spring Boot Actuator", "MANUAL"),
                                   tuple("org.springframework.cache.annotation.Cacheable",
-                                          "Caching", "PARTIAL"),
+                                          "Caching", "MANUAL"),
                                   tuple("org.springframework.data.repository.Repository",
-                                          "Spring Data", "PARTIAL"),
+                                          "Spring Data", "MANUAL"),
                                   tuple("org.springframework.http.ResponseEntity",
-                                          "Spring MVC response type", "PARTIAL"),
+                                          "Spring MVC response type", "MANUAL"),
                                   tuple("org.springframework.scheduling.annotation.Scheduled",
-                                          "Scheduling", "PARTIAL"),
+                                          "Scheduling", "MANUAL"),
                                   tuple("org.springframework.aop.Advisor",
                                           "Spring AOP", "MANUAL"),
                                   tuple("org.springframework.batch.core.Job",
@@ -231,16 +231,16 @@ class FindSpringUsageTest implements RewriteTest {
 
               /*~~(MANUAL: Spring AOP -> CDI interceptors or decorators)~~>*/import org.springframework.aop.Advisor;
               /*~~(MANUAL: Spring Batch -> Jakarta Batch or an application-specific batch runtime)~~>*/import org.springframework.batch.core.Job;
-              /*~~(PARTIAL: Spring Boot Actuator -> MicroProfile Health and Metrics)~~>*/import org.springframework.boot.actuate.health.HealthIndicator;
+              /*~~(MANUAL: Spring Boot Actuator -> MicroProfile Health and Metrics)~~>*/import org.springframework.boot.actuate.health.HealthIndicator;
               /*~~(MANUAL: Spring Boot auto-configuration -> Explicit CDI producers or a CDI portable extension)~~>*/import org.springframework.boot.autoconfigure.AutoConfiguration;
-              /*~~(PARTIAL: Caching -> Application-specific cache with CDI integration)~~>*/import org.springframework.cache.annotation.Cacheable;
+              /*~~(MANUAL: Caching -> Application-specific cache with CDI integration)~~>*/import org.springframework.cache.annotation.Cacheable;
               /*~~(MANUAL: Spring Cloud -> Component-specific MicroProfile or Helidon replacement)~~>*/import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
               /*~~(MANUAL: Spring ApplicationContext -> CDI Instance, BeanManager, or injection)~~>*/import org.springframework.context.ApplicationContext;
-              /*~~(PARTIAL: Spring Data -> Jakarta Persistence repository or DAO)~~>*/import org.springframework.data.repository.Repository;
-              /*~~(PARTIAL: Spring MVC response type -> jakarta.ws.rs.core.Response)~~>*/import org.springframework.http.ResponseEntity;
+              /*~~(MANUAL: Spring Data -> Jakarta Persistence repository or DAO)~~>*/import org.springframework.data.repository.Repository;
+              /*~~(MANUAL: Spring MVC response type -> jakarta.ws.rs.core.Response)~~>*/import org.springframework.http.ResponseEntity;
               /*~~(MANUAL: Spring Integration -> Redesign integration flows for Helidon-compatible messaging)~~>*/import org.springframework.integration.annotation.IntegrationComponentScan;
               /*~~(MANUAL: Spring Kafka -> Helidon-compatible Kafka client or messaging integration)~~>*/import org.springframework.kafka.core.KafkaTemplate;
-              /*~~(PARTIAL: Scheduling -> Helidon scheduling or Jakarta Concurrency)~~>*/import org.springframework.scheduling.annotation.Scheduled;
+              /*~~(MANUAL: Scheduling -> Helidon scheduling or Jakarta Concurrency)~~>*/import org.springframework.scheduling.annotation.Scheduled;
               /*~~(MANUAL: Spring Security -> Helidon Security or Jakarta Security)~~>*/import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
               /*~~(MANUAL: Spring MVC view controller -> Redesign as Jakarta REST or retain a dedicated view layer)~~>*/import org.springframework.stereotype.Controller;
               /*~~(MANUAL: Spring WebFlux -> Redesign for Jakarta REST or Helidon SE)~~>*/import org.springframework.web.reactive.function.client.WebClient;

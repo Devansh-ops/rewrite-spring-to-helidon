@@ -6,41 +6,41 @@ Gradle projects, including large multi-module Maven reactors.
 
 This project is not affiliated with or endorsed by OpenRewrite, Spring, or Helidon.
 
-Version `0.1.0-SNAPSHOT` targets [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3).
-It is intentionally a migration scaffold, not a one-command framework replacement.
-It automates source changes whose semantics can be preserved, adds a minimal Helidon
-foundation, and reports the Spring surface that still needs engineering work.
+Version `0.1.0` targets [Helidon MP 4.5.3](https://github.com/helidon-io/helidon/releases/tag/4.5.3).
+It is intentionally an assessment-first migration scaffold, not a one-command framework
+replacement. The canonical v0.1 recipe inventories Spring source usage and changes no application
+semantics, build files, resources, or runtime launcher. Bounded leaf recipes are available for
+deliberate, separately reviewed migration steps.
 
-> **Preview status:** always run the analysis and a dry run first. The migration recipe
-> does not promise a compiling or production-ready Helidon application, remove Spring,
-> or make architecture-specific choices on the application's behalf.
+> **Preview status:** v0.1 does not provide a module-atomic runtime migration. Do not compose its
+> mutating leaf recipes as though they were a complete migration pipeline. Always use an isolated
+> branch, dry-run one leaf at a time, and compile and test the affected module.
 
 ## In plain English
 
-This project handles the first, mechanical part of moving a conventional Spring Boot REST
-application to Helidon MP. It can translate familiar annotations and APIs, add the minimum
-Helidon build and resource foundation, and produce a report of the Spring work that remains.
+This project first answers: “Where does this application depend on Spring, and which target API
+might replace each dependency?” It adds review markers to a dry-run patch and exports a data table.
+It does not change the running framework when you activate a top-level v0.1 recipe.
 
 It follows one safety rule: **when the recipe cannot prove that a change preserves behavior, it
-leaves that code on Spring and marks it for review.** The expected result is a partly migrated
-codebase and an actionable to-do list—not a finished production application.
+leaves that code on Spring and marks it for review.** The expected canonical result is an actionable
+inventory, not a partly converted or production-ready application.
 
-### What it can change automatically
+### What the opt-in leaf recipes can change
 
-Each change below is made only when the surrounding class and module pass the recipe's safety
-checks.
+These transformations are not part of the canonical v0.1 recipe. Activate one explicitly only
+after reviewing its exact boundary and the surrounding module.
 
 | Existing Spring code | Helidon MP-compatible result |
 | --- | --- |
 | `@Service` or `@Component` | CDI `@ApplicationScoped` and `@Named` |
 | Eligible `@Autowired` injection | Jakarta `@Inject` |
 | A zero-argument `@Bean(destroyMethod = "")` | CDI `@Produces`, `@Singleton`, and `@Named` |
-| A simple scalar `@Value` placeholder | MicroProfile `@ConfigProperty` |
-| A straightforward Spring MVC REST controller | Jakarta REST `@Path`, `@GET`, `@POST`, and related annotations |
-| Supported `ResponseEntity` builders | Jakarta REST `Response` |
-| A supported Spring transaction annotation | Jakarta Transactions `@Transactional` |
-| A plain Spring Boot launcher with no remaining Spring runtime work in its module | `io.helidon.Main.main(args)` |
-| An executable Maven module | Additive Helidon dependency management, MP core, CDI discovery, and an empty MP Config scaffold |
+| An executable Maven module, when the build/resource leaves are selected | Additive Helidon dependency management, MP core, CDI discovery, and an empty MP Config scaffold |
+
+Spring MVC, `ResponseEntity`, Spring transactions, Spring Boot launcher, and `@Value` leaf recipes
+are assessment-only in v0.1. They preserve source behavior and mark the relevant code for explicit
+migration. The CDI leaves also preserve an entire Spring bean when any member uses `@Value`.
 
 The recipe does **not** automatically port security, repositories, application property files,
 messaging, reactive code, tests, or deployment architecture. It also does not remove Spring
@@ -54,23 +54,24 @@ behavior, and other application-specific concerns require a separate manual audi
 | --- | --- |
 | Spring Boot 4 or another modern Jakarta-compatible baseline | Spring Boot 2 or an application still using `javax.*` APIs |
 | Conventional Spring MVC REST services | WebFlux, Reactor, streaming, or heavily customized MVC |
-| `@Service`, `@Component`, `@Autowired`, and simple `@Value` usage | Extensive custom scopes, bean lifecycle hooks, AOP, or dynamic application-context access |
+| `@Service`, `@Component`, and explicitly resolvable `@Autowired` usage | Extensive custom scopes, bean lifecycle hooks, AOP, `@Value`, or dynamic application-context access |
 | Maven projects, including multi-module reactors | Gradle projects needing automatic build migration |
 | A staged migration where each module will be compiled and tested | An expectation that one recipe run will produce a deployable Helidon application |
 
 ### Recommended workflow
 
 ```text
-Analyze without edits -> Review the report -> Preview a migration -> Apply one module -> Finish manual work
+Assess without semantic edits -> Review the report -> Select one leaf -> Dry-run -> Compile and test one module
 ```
 
-1. Run `AnalyzeSpringBootToHelidonMp` to inventory Spring usage without changing application
-   behavior.
+1. Run `AnalyzeSpringBootToHelidonMp` or the compatibility entry point
+   `SpringBoot4ToHelidonMp`; both are assessment-only in v0.1.
 2. Review its patch markers and exported data tables, especially all `PARTIAL` and `MANUAL`
    findings.
-3. Dry-run `SpringBoot4ToHelidonMp` and inspect every proposed change.
-4. Apply it to one executable module, then compile, test, and review security and configuration.
-5. Migrate the reported unsupported areas deliberately before removing Spring.
+3. Choose one directly activatable leaf recipe whose documented boundary matches the module.
+4. Dry-run that leaf, inspect every change, then compile and test the affected module.
+5. Do not switch launchers or remove Spring until all runtime, configuration, dependency, test,
+   and deployment contracts have been migrated and validated.
 
 The [quick start](#quick-start-with-maven) contains the commands for the first three steps.
 
@@ -96,59 +97,49 @@ v0.1 migrates every Spring feature mapped to it.
 
 ## Choose a top-level recipe
 
-Start with the analysis recipe. Use a migration recipe only after its report and a dry run have
-been reviewed.
+Start with either assessment entry point. They intentionally have the same v0.1 behavior; the
+additional names preserve a stable path for later bounded compositions.
 
 | Recipe | Purpose |
 | --- | --- |
 | `io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp` | Finds Spring types, adds source markers in the dry-run patch, and exports a support-level data table without changing application semantics. |
-| `io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp` | Canonical v0.1 migration for applications already on Spring Boot 4. |
-| `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMp` | General direct alias for applications already on a modern Jakarta-compatible Spring baseline. |
-| `io.github.devanshops.rewrite.helidon.PrepareMavenBuildForHelidonMp` | Safe, additive Maven preparation only: imports the Helidon Dependencies POM at the Maven root and in direct Boot POMs, then adds the MP core bundle to executable Spring modules. |
-| `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMpViaBoot4` | Optional wrapper that first runs the separately supplied Spring Boot 4 upgrade recipe and fails validation if it is absent. See [licensing](#optional-spring-boot-4-normalization-and-licensing). |
+| `io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp` | Canonical, fail-closed v0.1 assessment for applications already on Spring Boot 4; changes no source semantics, build files, resources, or launcher. |
+| `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMp` | General assessment alias for applications already on a modern Jakarta-compatible Spring baseline. |
+| `io.github.devanshops.rewrite.helidon.SpringBootToHelidonMpViaBoot4` | Optional wrapper that first runs the separately supplied Spring Boot 4 upgrade recipe, then assesses the result. The upstream upgrade is a real source/build mutation. See [licensing](#optional-spring-boot-4-normalization-and-licensing). |
 
 The canonical composition runs in this order:
 
 ```text
 SpringBoot4ToHelidonMp
-  1. PrepareMavenBuildForHelidonMp
-  2. AddHelidonMpResources
-  3. MigrateSpringNamedBeansToCdi
-  4. MigrateSpringDiToCdi
-  5. MigrateResponseEntityToJakartaResponse
-  6. MigrateSpringMvcToJakartaRest
-  7. MigrateSpringTransactionalToJakarta
-  8. MigrateSpringValueToConfigProperty
-  9. MigrateSpringBootMain
- 10. FindSpringUsage
+  1. FindSpringUsage
 ```
 
-Resource discovery deliberately precedes entry-point migration, named-bean handling precedes
-the general DI conversion, and transaction/configuration injection run only after controller
-eligibility has been decided. The launcher changes only when no other production Spring runtime
-references remain in its module. Project-scoped safety scans run before edits in each OpenRewrite
-cycle, so the canonical recipe deliberately requests follow-up cycles before it replaces the
-runtime entry point.
-The final inventory measures Spring residue after the mechanical changes.
+Earlier prototypes composed independent source, build, resource, and launcher transformations.
+That can create a broken hybrid when one Spring bean converts to CDI while unsupported Spring code
+keeps the Spring runtime active. Until a module-wide atomic preflight exists, v0.1 keeps those
+mutations out of the canonical recipe.
 
 See [the detailed automation boundary](docs/automation-boundary.md) for the exact supported
 subsets and manual-review cases.
 
-Every leaf recipe is also directly activatable when a smaller migration step is preferable:
+Every leaf recipe remains directly activatable for focused experiments and staged engineering.
+Mutation leaves are advanced opt-ins: their local checks do not prove that the whole module is
+ready to leave Spring.
 
 | Leaf recipe | Scope |
 | --- | --- |
-| `AddHelidonMpResources` | Adds missing CDI and MicroProfile Config scaffolds to executable modules. |
+| `AddHelidonMpResources` | Opt-in: adds missing CDI and MicroProfile Config scaffolds to executable modules. |
 | `FindSpringUsage` | Marks and exports a classified inventory of remaining Spring types. |
-| `MigrateResponseEntityToJakartaResponse` | Converts a compilation-unit-safe subset of `ResponseEntity` builders to Jakarta REST `Response`. |
-| `MigrateSpringBootMain` | Converts a plain, option-free Spring Boot launcher to `io.helidon.Main`. |
-| `MigrateSpringDiToCdi` | Converts proxy-safe stereotypes, injection points, and producers to CDI. |
-| `MigrateSpringMvcToJakartaRest` | Converts an atomically safe controller subset to Jakarta REST. |
-| `MigrateSpringNamedBeansToCdi` | Preserves supported Spring bean names with CDI `@Named`. |
-| `MigrateSpringTransactionalToJakarta` | Converts the supported Spring transaction annotation subset. |
-| `MigrateSpringValueToConfigProperty` | Converts simple placeholders at proven CDI injection points. |
+| `PrepareMavenBuildForHelidonMp` | Opt-in: adds Helidon dependency management and MP core without removing Spring. |
+| `MigrateResponseEntityToJakartaResponse` | Assessment-only in v0.1: preserves and marks `ResponseEntity` use. |
+| `MigrateSpringBootMain` | Assessment-only in v0.1: preserves and marks Spring Boot startup. |
+| `MigrateSpringDiToCdi` | Opt-in: converts a locally proxy-safe subset of stereotypes, injection points, and producers to CDI. |
+| `MigrateSpringMvcToJakartaRest` | Assessment-only in v0.1: preserves and marks Spring MVC REST controllers. |
+| `MigrateSpringNamedBeansToCdi` | Opt-in: converts a locally safe named-bean subset to CDI `@Named`. |
+| `MigrateSpringTransactionalToJakarta` | Assessment-only in v0.1: preserves and marks direct Spring transaction annotations; composed usages need a separate audit. |
+| `MigrateSpringValueToConfigProperty` | Preserves and marks every `@Value` injection point for explicit configuration-contract migration. |
 
-For example, a supported service changes from:
+For example, this service is deliberately not half-converted:
 
 ```java
 @Service
@@ -158,25 +149,29 @@ class CatalogService {
 }
 ```
 
-to:
+The canonical recipe preserves both Spring annotations and adds review markers in the dry-run
+patch. It does not produce the tempting bare `@ConfigProperty` substitution because missing values,
+empty values, scalar conversion, and application-provided converters can behave differently. The
+markers are shown as ordinary comments here for readability:
 
 ```java
-@ApplicationScoped
-@Named("catalogService")
+/* manual migration: keep this bean on Spring until its configuration contract is migrated */
+@Service
 class CatalogService {
-    @Inject
-    @ConfigProperty(name = "catalog.region", defaultValue = "us-east")
+    /* manual migration: choose compatible MP Config lookup/conversion behavior */
+    @Value("${catalog.region:us-east}")
     String region;
 }
 ```
 
-The recipe adds the corresponding Jakarta and MicroProfile imports. Shapes outside the documented
-safe subset remain unchanged and receive a review marker.
+The public leaf recipe ID remains available for compatibility, but it is assessment/refusal-only in
+v0.1. A later bounded or compatibility-generating recipe can automate this after proving the
+source and target configuration semantics.
 
 ## Quick start with Maven
 
-The snapshot is not assumed to be published. Build and install it into the local Maven
-repository first:
+Version `0.1.0` is distributed as source through GitHub Releases and is not published to Maven
+Central. Build and install it into the local Maven repository first:
 
 ```bash
 ./mvnw --batch-mode verify
@@ -187,34 +182,37 @@ From the target application's root, assess the code without changing it:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.AnalyzeSpringBootToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
 
 Review both the dry-run patch and the CSVs under
 `target/rewrite/datatables/<timestamp>/`. The Spring usage inventory contains the source
-path, feature family, Spring type, support level (`AUTOMATIC`, `PARTIAL`, or `MANUAL`), and
-suggested replacement.
+path, feature family, Spring type, support level, and suggested replacement. v0.1 reports bounded
+leaf coverage as `PARTIAL` and assessment-only families as `MANUAL`; `AUTOMATIC` is reserved for a
+future module-atomic canonical migration.
 
-Then preview the actual migration:
+The canonical compatibility entry point produces the same assessment in v0.1:
 
 ```bash
 mvn -U org.openrewrite.maven:rewrite-maven-plugin:6.46.1:dryRun \
-  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT \
+  -Drewrite.recipeArtifactCoordinates=io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0 \
   -Drewrite.activeRecipes=io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp \
   -Drewrite.exportDatatables=true
 ```
 
-Only after reviewing the proposed changes, apply them by replacing `dryRun` with `run`.
-Use an isolated branch or worktree and validate one executable module before widening the
-scope.
+There is normally no reason to replace `dryRun` with `run` for a top-level v0.1 recipe: its printed
+changes are search markers. To experiment with a mutating leaf, replace the active recipe with that
+leaf's fully qualified ID, keep `dryRun`, and review its section in
+[the detailed automation boundary](docs/automation-boundary.md). Apply it only in an isolated branch
+or worktree and validate one executable module before widening the scope.
 
 ## Gradle consumption
 
 The Java source recipes can run through the OpenRewrite Gradle plugin. The v0.1 build recipe
 only edits Maven POMs, so Gradle dependency management and packaging must be migrated manually.
-After installing the snapshot locally, a Groovy build can load it as follows:
+After installing version `0.1.0` locally, a Groovy build can load it as follows:
 
 ```groovy
 plugins {
@@ -228,7 +226,7 @@ repositories {
 }
 
 dependencies {
-    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0-SNAPSHOT'
+    rewrite 'io.github.devansh-ops:rewrite-spring-to-helidon:0.1.0'
 }
 
 rewrite {
@@ -242,6 +240,10 @@ its patch to `build/reports/rewrite/rewrite.patch` and exported data tables bene
 `build/reports/rewrite/datatables/`.
 
 ## Build and resource behavior
+
+The build and resource recipes below are direct opt-ins and are **not** in the canonical v0.1
+composition. Adding target dependencies can change dependency mediation even though nothing is
+removed, so review and test the affected reactor.
 
 `PrepareMavenBuildForHelidonMp` is deliberately additive. When it finds Spring Boot Maven
 usage, it imports `io.helidon:helidon-dependencies:4.5.3` into dependency management at the
@@ -269,31 +271,17 @@ application's environment-specific settings.
 
 ## Exact v0.1 safety boundary
 
-The detailed rules below use a few OpenRewrite and CDI terms:
+The canonical v0.1 guarantee is intentionally small:
 
-- **Class-atomic** or **controller-atomic** means the whole class or controller is converted, or
-  none of it is. The recipe avoids leaving a half-Spring, half-CDI class.
-- **Proxy-safe** means CDI can construct, proxy, and intercept the class without a deployment-time
-  failure.
-- **Spring runtime residue** means Spring types, dependencies, or container behavior that the
-  application still needs at runtime.
+- it runs `FindSpringUsage` only;
+- it adds search markers and exports one classified row per Spring type per Java source file; and
+- it does not change application semantics, POMs, resources, dependencies, or launchers.
 
-The automated core covers these REST-service mechanics:
-
-- class-atomic conversion of proxy-safe `@Service` and `@Component` beans and eligible injection
-  points;
-- zero-argument producers only when `@Bean` contains the literal lifecycle opt-out
-  `destroyMethod = ""`;
-- one literal bean name or qualifier;
-- simple `@Value` placeholders with non-empty defaults for equivalent scalar target types at
-  eligible CDI injection points;
-- the supported subset of transaction annotations;
-- controller-atomic MVC conversion for public, proxy-safe resource classes in modules without
-  unsupported Spring Web or Security infrastructure;
-- common `ResponseEntity` builders inside eligible REST resources;
-- one structurally plain application launcher after its module no longer needs the Spring runtime;
-  and
-- additive Maven preparation and missing Helidon resource scaffolds.
+The directly activatable CDI leaves contain bounded transformations. The build and resource leaves
+provide additive scaffolding. MVC, `ResponseEntity`, transactions, `@Value`, and launcher leaves are
+assessment-only in v0.1. None of these leaf-level decisions proves that an entire module can switch
+runtimes atomically, and combining mutations can create a broken Spring/CDI hybrid. Treat the leaves
+as independent engineering tools, not as a complete pipeline.
 
 The following remain explicit engineering work in v0.1:
 
@@ -310,23 +298,27 @@ The following remain explicit engineering work in v0.1:
   constructors, and aggregate injection;
 - Spring scopes, profiles, conditions, imports, component scans, property sources, lazy beans,
   dependency ordering, and other container lifecycle semantics;
-- static `@Autowired`/`@Value` injection and `@Value` on ordinary method parameters;
-- Spring `${name:}` empty defaults, which MicroProfile Config deliberately treats as absent;
-- Spring MVC parameter defaults and non-scalar REST parameter conversions;
-- collection, duration, period, enum, and other `@Value` target types whose Spring conversion
-  rules are not proven equivalent to MicroProfile Config;
+- static `@Autowired` injection;
+- transaction rollback rules, propagation, isolation, timeout, read-only hints, labels, manager
+  selection, class-local partial conversion, reactive managers, `UserTransaction`, AspectJ mode,
+  and explicit global transaction-management settings;
+- every bare Spring `@Value` injection point, including simple scalars, because Spring and
+  MicroProfile Config differ for missing values, empty values, scalar conversion, and custom
+  converters;
+- every Spring MVC controller and `ResponseEntity` contract, including parameter binding, content
+  negotiation, status, headers, generic entities, error handling, and direct Java callers;
 - `RestTemplate`, `WebClient`, declarative clients, and client resilience behavior;
 - JPA provider, transaction manager, datasource, validation, and test-runtime configuration;
 - Spring test slices, mocks, test lifecycle, deployment descriptors, containers, and packaging; and
 - final Spring dependency removal and residue enforcement.
 
-The recipe leaves unsupported code in place and adds search markers instead of guessing. There
-is no Spring-removal finalizer in v0.1.
+The canonical recipe leaves all Spring code in place and adds search markers instead of guessing.
+There is no module-atomic runtime switch or Spring-removal finalizer in v0.1.
 
 ## Optional Spring Boot 4 normalization and licensing
 
 `SpringBootToHelidonMpViaBoot4` composes
-`org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` before the canonical migration. It is
+`org.openrewrite.java.spring.boot4.UpgradeSpringBoot_4_0` before the canonical assessment. It is
 kept out of the core runtime dependency graph. A validation guard prevents the wrapper from
 silently skipping normalization when the optional recipe is absent. To activate it, separately supply:
 

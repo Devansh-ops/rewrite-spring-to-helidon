@@ -18,48 +18,35 @@ recipeList:
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.github.devanshops.rewrite.helidon.SpringBoot4ToHelidonMp
-displayName: Migrate Spring Boot 4 to Helidon MP
+displayName: Assess Spring Boot 4 for Helidon MP migration
 description: >-
-  Applies the supported mechanical Spring-to-Jakarta, CDI, and MicroProfile migrations,
-  prepares the Maven build for Helidon MP, adds bootstrap resources, and marks remaining Spring usage.
+  Provides the fail-closed v0.1 entry point: inventories Spring usage and marks migration
+  candidates without changing source semantics, build files, resources, or the runtime launcher.
 tags:
   - spring
   - helidon
-  - migration
-estimatedEffortPerOccurrence: PT30M
-# Scanning safety gates assess the original module before sibling recipes migrate it. Follow-up
-# cycles re-evaluate the post-migration module before replacing and stabilizing the Boot launcher.
-causesAnotherCycle: true
+  - analysis
+estimatedEffortPerOccurrence: PT5M
 preconditions:
   - org.openrewrite.Singleton
 recipeList:
-  # Build preparation intentionally keeps the existing parent and all Spring dependencies.
-  - io.github.devanshops.rewrite.helidon.PrepareMavenBuildForHelidonMp
-  # Resource discovery must run before the Spring Boot entry point is rewritten.
-  - io.github.devanshops.rewrite.helidon.AddHelidonMpResources
-  # Named beans run first so the general DI recipe can handle the remaining argument-free annotations.
-  - io.github.devanshops.rewrite.helidon.MigrateSpringNamedBeansToCdi
-  - io.github.devanshops.rewrite.helidon.MigrateSpringDiToCdi
-  - io.github.devanshops.rewrite.helidon.MigrateResponseEntityToJakartaResponse
-  - io.github.devanshops.rewrite.helidon.MigrateSpringMvcToJakartaRest
-  # Transaction/config migration runs after controller decisions so skipped Spring classes remain intact.
-  - io.github.devanshops.rewrite.helidon.MigrateSpringTransactionalToJakarta
-  - io.github.devanshops.rewrite.helidon.MigrateSpringValueToConfigProperty
-  - io.github.devanshops.rewrite.helidon.MigrateSpringBootMain
+  # Source/build transforms remain directly activatable leaf recipes in v0.1. They are not
+  # composed here because a partial module conversion can leave a runnable Spring application
+  # with CDI-only beans while its Spring launcher and unsupported features remain unchanged.
   - io.github.devanshops.rewrite.helidon.FindSpringUsage
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.github.devanshops.rewrite.helidon.SpringBootToHelidonMp
-displayName: Migrate Spring Boot to Helidon MP
+displayName: Assess Spring Boot for Helidon MP migration
 description: >-
-  General entry point for supported Spring Boot applications that are already on a modern
-  Jakarta-compatible baseline; delegates to the canonical Spring Boot 4 migration recipe.
+  General v0.1 entry point for Spring Boot applications on a modern Jakarta-compatible
+  baseline; delegates to the fail-closed Spring Boot 4 assessment recipe.
 tags:
   - spring
   - helidon
-  - migration
-estimatedEffortPerOccurrence: PT30M
+  - analysis
+estimatedEffortPerOccurrence: PT5M
 preconditions:
   - org.openrewrite.Singleton
 recipeList:

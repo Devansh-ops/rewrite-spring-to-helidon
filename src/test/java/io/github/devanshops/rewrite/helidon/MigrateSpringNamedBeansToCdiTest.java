@@ -316,6 +316,12 @@ class MigrateSpringNamedBeansToCdiTest implements RewriteTest {
                   Duration timeout;
               }
 
+              @Component("configuredWorker")
+              class ConfiguredWorker {
+                  @Value("${attempts:3}")
+                  int attempts;
+              }
+
               @Component("lazyWorker")
               @Lazy
               class LazyWorker {
@@ -357,6 +363,12 @@ class MigrateSpringNamedBeansToCdiTest implements RewriteTest {
               class TimedWorker {
                   @Value("${timeout}")
                   Duration timeout;
+              }
+
+              /*~~(Manual migration: unsupported @Value members require atomic CDI bean redesign)~~>*/@Component("configuredWorker")
+              class ConfiguredWorker {
+                  @Value("${attempts:3}")
+                  int attempts;
               }
 
               /*~~(Manual migration: Spring scope, lifecycle, or conditional annotations require atomic CDI bean redesign)~~>*/@Component("lazyWorker")

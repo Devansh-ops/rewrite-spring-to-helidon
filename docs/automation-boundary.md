@@ -1,100 +1,79 @@
 # v0.1 automation boundary
 
-This project treats a Spring Boot to Helidon MP migration as two related products:
+Version 0.1 separates assessment from mutation. This is a safety contract: a collection of
+locally valid edits is not automatically a valid Spring-to-Helidon runtime migration.
 
-1. an assessment that locates and classifies the Spring programming model; and
-2. a conservative set of source and build transformations for patterns with a defensible
-   Jakarta, CDI, or MicroProfile equivalent.
+## Canonical recipe
 
-The boundary is part of the contract. A recipe that preserves unsupported code and marks it for
-review is preferable to a transformation that compiles while silently changing runtime behavior.
+`SpringBoot4ToHelidonMp` and its general alias are assessment-only in v0.1. They run
+`FindSpringUsage`, which:
 
-## What the canonical recipe changes
+- marks attributed Spring imports and uses in Java source;
+- exports one data-table row per Spring type per source file; and
+- suggests a Jakarta, MicroProfile, Helidon, or manual migration direction.
 
-| Area | Automated subset | Preserved and marked for review |
+The canonical recipe does not change Java semantics, POMs, resources, dependencies, application
+configuration, or the Spring Boot launcher. It is intentionally equivalent in scope to
+`AnalyzeSpringBootToHelidonMp` for this release.
+
+This boundary prevents a broken hybrid such as a CDI-only service inside an application whose
+unsupported controllers, configuration, and launcher still require the Spring container.
+
+## Directly activatable leaf recipes
+
+Every public leaf recipe remains available, but it must be selected explicitly. A leaf's local
+preconditions do not prove that the whole module is ready to leave Spring.
+
+| Leaf | v0.1 behavior | Important boundary |
 | --- | --- | --- |
-| Maven build | Imports `io.helidon:helidon-dependencies:4.5.3` into root dependency management and direct Spring Boot POMs, then adds managed `helidon-microprofile-core` to modules using `SpringApplication`. | Parent replacement, Spring removal, Java version, packaging plugins, full MP bundle, feature-specific runtime dependencies, and non-Maven builds. |
-| Application entry point | Atomically replaces a structurally plain, option-free launcher containing exactly one standalone `SpringApplication.run` as the only statement in its only method, `public static void main`; the primary source must be the enclosing `@SpringBootApplication` class and the second argument a `String[]`. It delegates to `io.helidon.Main.main(args)` and removes `@SpringBootApplication` only after the same module has no other production Spring runtime usage. | Remaining production Spring runtime types, multiple startup calls, a different or composite primary source, a used return value, literal varargs, setup or cleanup statements, extra fields/methods/nested types, inheritance/interfaces, direct or composed additional Spring annotations, Spring Security source/build usage, unsupported overloads, `SpringApplicationBuilder`, servlet initializer behavior, and `@SpringBootApplication` exclusions/options preserve the whole launcher. |
-| CDI scopes and injection | `@Service` and `@Component` with class-atomically safe CDI bean shapes become `@ApplicationScoped` and receive a stable `@Named`; explicit `@Configuration(proxyBeanMethods = false)` is supported. Eligible, explicitly resolvable field and constructor `@Autowired` sites become `@Inject`; normal-scoped beans must retain an implicit or non-private no-argument constructor. Safe zero-argument producers with the literal `@Bean(destroyMethod = "")` opt-out gain `@Produces`, `@Singleton`, and `@Named`. | Any unsupported injection point preserves the whole class. `@Repository` remains manual because Spring persistence-exception translation is not a CDI scope. Default/proxied configuration, unqualified name-fallback resolution, producer parameters, missing or non-literal destroy-method opt-outs, multiple or ambiguous constructors, final/sealed/static/optional/aggregate injection, unproxyable bean classes, inherited or Spring-interface contracts, lifecycle attributes, aliases, Spring web behavior, scopes/profiles/conditions/imports/scans/property sources/laziness/dependency ordering, lifecycle callbacks, and unsafe producer return contracts are refused. |
-| Named beans | One literal stereotype/bean name and matching literal `@Qualifier` become CDI `@Named`; safely converted unnamed stereotypes and lifecycle-safe zero-argument producers receive their Spring default bean name. | Multiple aliases, computed names, composed qualifiers, aggregate injection, producer parameters, inferred Spring `close`/`shutdown` destruction, and cases where Spring name-based fallback has broader semantics. |
-| External configuration | In a proven CDI bean, literal `${name}` and `${name:non-empty-default}` `@Value` expressions targeting strings, booleans, or numeric primitives/wrappers become MicroProfile Config `@ConfigProperty`; fields and unique eligible constructors gain `@Inject`, while actual CDI producer parameters remain producer injection points. | Unconverted Spring beans, final/static fields, ambiguous constructors, Spring `${name:}` empty defaults, ordinary method parameters, SpEL, nested placeholders, non-literals, collections, durations and other non-scalar or non-equivalent conversions, `@ConfigurationProperties`, validation, property sources, and Spring configuration files. |
-| Transactions | In a proven, proxyable CDI bean, default `@Transactional`; `rollbackFor` and `noRollbackFor` map to `rollbackOn` and `dontRollbackOn` on interceptable targets. | Spring-only or unproxyable beans, non-interceptable methods, propagation, isolation, timeout, read-only, labels, manager selection, reactive transactions, and provider configuration. |
-| REST controllers | When no Spring Security or unsupported Spring Web/Servlet infrastructure is present in the same module, a controller-atomic conversion changes a public, top-level, proxyable `@RestController` to `@ApplicationScoped` plus `@Path`; supported public GET/POST/PUT/DELETE/PATCH methods become Jakarta REST resource methods. | Global advice/interceptors/filters/converters/exception resolvers, direct or composed Spring Security, residual Spring Web/Servlet types, unsupported or Spring-specific path syntax, any unsupported mapping/binding, residual Spring behavior annotation, residual `ResponseEntity`, non-public/final/sealed/static methods, unsafe constructors, inheritance or Spring-interface contracts, MVC view, void, async, or streaming contracts preserve the whole controller. |
-| REST parameters | Safe scalar query, path, and header bindings become `@QueryParam`, `@PathParam`, and `@HeaderParam`; safe request bodies drop the Spring annotation. Every mapped parameter must have a recognized portable binding. | Spring `defaultValue`, unannotated Spring-resolved parameters, required/null differences, optional primitive parameters, collections and non-scalar targets, whole-header maps, ambiguous names, multipart, model binding, binding results, validation order, and advice/exception semantics. |
-| HTTP responses | In a proven Spring MVC or Jakarta REST resource, and only when the same module-level security/Web and controller preflights permit migration, `ResponseEntity<T>` becomes Jakarta REST `Response` for common `ok`, `status`, `badRequest`, `notFound`, `noContent`, `accepted`, and `created` factories/builders with integer expressions or attributed Spring `HttpStatus` constants. Conversion is compilation-unit atomic and is deferred when the enclosing controller cannot migrate atomically. | Spring Security or unsupported Spring Web/Servlet infrastructure in the module, service/client uses, dynamic/custom `HttpStatusCode`, member references, subclasses, arbitrary headers, cookies, content types, cache controls, nested builder chains, and unsupported factories. |
-| Bootstrap resources | Adds missing CDI 4 `beans.xml` and a comment-only `microprofile-config.properties` to each detected executable root or nested module. | Existing files and all application-specific configuration values. |
-| Residue | Marks Spring imports and typed uses and exports a classified data table. | No dependency deletion or build failure based on residue in v0.1. |
+| `FindSpringUsage` | Assessment | Type-family classification is not occurrence-level proof. Review every marker and row. |
+| `PrepareMavenBuildForHelidonMp` | Opt-in mutation | Additively imports `io.helidon:helidon-dependencies:4.5.3` and adds `helidon-microprofile-core` to detected executable Maven modules. It does not replace parents, remove Spring, change Java, or select feature runtimes. Dependency mediation can still change. |
+| `AddHelidonMpResources` | Opt-in mutation | Adds only missing CDI 4 `beans.xml` and a comment-only `microprofile-config.properties`; existing resources are preserved. It does not migrate application configuration. |
+| `MigrateSpringDiToCdi` | Opt-in mutation | Converts a class-atomically safe subset of `@Service`, `@Component`, `@Autowired`, explicit non-proxying configuration, and lifecycle-opted-out zero-argument producers. It refuses repository semantics, `@Value`, unsafe scopes/lifecycle, ambiguous injection, inheritance, and non-proxyable shapes. |
+| `MigrateSpringNamedBeansToCdi` | Opt-in mutation | Preserves a bounded set of literal Spring bean names and qualifiers with CDI `@Named`. It refuses aliases, computed/composed names, producer parameters, inferred destruction, and name-fallback cases it cannot prove. |
+| `MigrateSpringTransactionalToJakarta` | Assessment-only | Preserves and marks direct Spring `@Transactional`, including source meta-annotation declarations. Composed usages need a separate audit. Local annotation shape cannot prove the absence of XML advice, programmatic rollback defaults, manager selection, reactive behavior, transactional tests, or provider-specific policy. |
+| `MigrateSpringMvcToJakartaRest` | Assessment-only | Preserves and marks every `@RestController`; no route, parameter, return, security, validation, or error contract is rewritten in v0.1. |
+| `MigrateResponseEntityToJakartaResponse` | Assessment-only | Preserves and precisely marks the direct import plus every attributed `ResponseEntity` use, including fully qualified syntax. No status, header, entity, builder, or method signature is rewritten. |
+| `MigrateSpringValueToConfigProperty` | Assessment-only | Preserves and marks every `@Value`. Spring and MicroProfile Config differ for missing/empty values, scalar conversion, defaults, and application-provided converters. |
+| `MigrateSpringBootMain` | Assessment-only | Preserves and marks Spring Boot bootstrap code. Source-only inspection cannot prove that starters, auto-configuration, XML, property files, service loaders, packaging, or deployment contracts are ready for a runtime switch. |
+
+Do not blindly compose mutating leaves. Apply one to an isolated branch or worktree, inspect the
+dry-run patch, compile and test the module, and retain Spring startup until all source, dependency,
+configuration, test, packaging, and deployment contracts have been deliberately migrated.
+
+## Search support levels
+
+The inventory records a support level for the type family:
+
+- `PARTIAL`: a bounded, directly activatable transformation exists for some occurrences, but the
+  canonical recipe does not apply it and occurrence-level preconditions still decide eligibility;
+- `MANUAL`: v0.1 preserves this family and intends no source-semantic transformation; and
+- `AUTOMATIC`: reserved by the data-table schema for a future canonical transformation with an
+  adequate atomicity boundary. v0.1 currently reports no Spring type family as automatic.
+
+The inventory is a Java Spring-type report, not a complete migration checklist. It does not prove
+the absence of Spring behavior in dependencies, plugins, property or YAML files, XML, tests,
+service-loader metadata, packaging, deployment descriptors, or external infrastructure.
 
 ## What v0.1 does not migrate
 
-These feature families require separate recipes or application-specific design decisions:
+These areas need bounded future recipes, explicit target policies, or application-specific design:
 
-| Spring area | Likely target direction | Why it is not mechanical |
+| Spring area | Likely target direction | Why it is not a direct annotation swap |
 | --- | --- | --- |
-| Spring Security | Helidon Security, MicroProfile JWT, or Jakarta Security | Filter chains, authentication providers, method rules, CSRF, sessions, and identity propagation are policy. |
-| Spring Data | Jakarta Persistence DAO/repository code or an evaluated Helidon Data design | Derived queries, repository fragments, paging, auditing, and transaction boundaries carry behavior. |
-| WebFlux/Reactor | Jakarta REST async APIs or a deliberate Helidon SE design | Backpressure, threading, context propagation, and streaming change architecture. |
-| Spring Cloud | Component-specific MicroProfile or Helidon facilities | Configuration, discovery, gateways, circuit breakers, and tracing need independent choices. |
-| Batch/Integration/messaging | Jakarta Batch or selected clients/connectors | Delivery, retry, ordering, checkpoint, and transaction semantics are workload-specific. |
-| Actuator/metrics | MicroProfile Health/Metrics or selected observability stack | Endpoint exposure, probe meaning, tags, registry, and operational contracts must be retained deliberately. |
-| Scheduling/caching | Helidon-compatible scheduler/concurrency and selected cache | Execution guarantees, keys, eviction, locking, and cluster behavior are not annotation synonyms. |
-| AOP/events/application context | CDI interceptors, decorators, events, `Instance`, or `BeanManager` | Proxy boundaries, ordering, lifecycle, and dynamic lookup semantics differ. |
-| HTTP clients | MicroProfile REST Client, Jakarta REST Client, or Helidon WebClient | Error mapping, interceptors, timeouts, retries, pooling, and observability must be redesigned. |
-| Tests | Helidon MP testing plus JUnit 5 | Spring test context, slices, mocks, profiles, and web-test clients are framework-specific. |
+| Spring MVC and HTTP responses | Jakarta REST resources, providers, and exception mappers | Binding sources, required/default values, conversion failures, negotiation, status, headers, generic entities, and direct callers differ. |
+| Spring Security | Helidon Security, MicroProfile JWT, or Jakarta Security | Filter chains, providers, CSRF, sessions, URL rules, method rules, and identity propagation are policy. |
+| Configuration | MicroProfile Config plus explicit compatibility code | Precedence, profiles, missing/empty behavior, converters, secrets, and file formats differ. |
+| Spring Data and persistence | Jakarta Persistence DAOs or an evaluated data framework | Derived queries, fragments, paging, auditing, provider setup, and transaction boundaries carry behavior. |
+| WebFlux/Reactor | Jakarta REST async APIs or a deliberate Helidon SE design | Backpressure, threading, context propagation, cancellation, and streaming change architecture. |
+| Spring Cloud | Component-specific MicroProfile or Helidon facilities | Configuration, discovery, gateways, resilience, and tracing need independent choices. |
+| Batch, Integration, Kafka, messaging | Jakarta Batch or selected clients/connectors | Delivery, retry, ordering, checkpoint, and transaction guarantees are workload-specific. |
+| Actuator, metrics, and health | MicroProfile Health/Metrics or a selected observability stack | Endpoint exposure, probe meaning, tags, registries, and operational contracts must be retained deliberately. |
+| Scheduling and caching | Selected scheduler/concurrency and cache integrations | Timing, overlap, keys, eviction, locking, and cluster behavior are not annotation synonyms. |
+| AOP, events, application context | CDI interceptors, decorators, events, `Instance`, or `BeanManager` | Proxy boundaries, ordering, lifecycle, and dynamic lookup semantics differ. |
+| HTTP clients | MicroProfile REST Client, Jakarta REST Client, or Helidon WebClient | Errors, interceptors, timeouts, retries, pooling, and observability must be redesigned. |
+| Tests and deployment | Helidon testing plus selected packaging/runtime | Spring test contexts, slices, mocks, profiles, containers, native images, and deployment descriptors are framework-specific. |
 
-Portable Jakarta Validation and Persistence annotations may already survive a Boot 4 baseline,
-but v0.1 does not configure a validation provider, persistence unit, datasource, JPA provider,
-transaction manager, schema lifecycle, or their tests.
-
-## Build coexistence is intentional
-
-The canonical recipe creates a transition state in which Spring and Helidon dependencies can
-coexist. This is useful for an incremental multi-module migration and makes build edits
-recoverable, but it is not a final deployable architecture.
-
-Specifically, `PrepareMavenBuildForHelidonMp`:
-
-- keeps the existing parent, including a Spring Boot parent;
-- keeps every existing Spring dependency;
-- imports the Helidon Dependencies POM at the Maven root and in directly identifiable Spring Boot POMs, including reactors where the aggregator is not the modules' parent;
-- adds the minimal Helidon MP core bundle to modules using `SpringApplication`; and
-- does not add feature-specific persistence, health, security, metrics, or packaging choices.
-
-After a module compiles and its behavior is validated on Helidon, a later finalization phase can
-remove proven-unused Spring artifacts and select packaging. That finalizer is intentionally absent
-from v0.1.
-
-## Search markers and support levels
-
-`AnalyzeSpringBootToHelidonMp` and the last phase of the canonical migration run
-`FindSpringUsage`. It records one row per Spring type per source file with:
-
-- source path;
-- feature family;
-- fully qualified Spring type;
-- support level; and
-- suggested replacement.
-
-The support level describes the recipe family's current coverage:
-
-- `AUTOMATIC`: an implementation exists for the common form of this type;
-- `PARTIAL`: only a deliberately bounded subset is automated; and
-- `MANUAL`: no v0.1 source transformation is intended.
-
-`AUTOMATIC` is not an assertion that every annotation argument or surrounding usage is safe.
-The transformation recipes perform a finer semantic check and leave a targeted marker when a
-specific occurrence is unsupported. Always review both the CSV and patch.
-
-## Expected post-run state
-
-A successful recipe run should yield:
-
-- a minimal Helidon dependency and resource foundation in applicable Maven modules;
-- migrated source only for supported occurrences;
-- original source retained for unsupported occurrences, with review markers;
-- an inventory of Spring residue; and
-- no implicit claim that the module is ready to deploy.
-
-Completion still requires compiling on Java 21+, resolving every marker and residue row,
-selecting target runtime integrations, migrating configuration and tests, and validating API and
-operational behavior.
+Portable Jakarta Validation and Persistence annotations may already survive a Boot 4 baseline, but
+v0.1 does not configure their providers, datasource, persistence unit, transaction manager, schema
+lifecycle, tests, or runtime packaging. It also has no Spring-removal finalizer.

@@ -530,7 +530,7 @@ class MigrateSpringDiToCdiTest implements RewriteTest {
     }
 
     @Test
-    void allowsOnlyValueMappingsTheDownstreamRecipeCanComplete() {
+    void preservesEveryBeanContainingValueForAtomicConfigurationMigration() {
         rewriteRun(
           java(
             """
@@ -568,14 +568,10 @@ class MigrateSpringDiToCdiTest implements RewriteTest {
               package com.example.configvalues;
 
               import java.time.Duration;
-
-              import jakarta.enterprise.context.ApplicationScoped;
-              import jakarta.inject.Named;
               import org.springframework.beans.factory.annotation.Value;
               import org.springframework.stereotype.Component;
 
-              @ApplicationScoped
-              @Named("supportedValue")
+              /*~~(Manual migration: unsupported @Value members require atomic CDI bean redesign)~~>*/@Component
               class SupportedValue {
                   @Value("${attempts:3}")
                   int attempts;
