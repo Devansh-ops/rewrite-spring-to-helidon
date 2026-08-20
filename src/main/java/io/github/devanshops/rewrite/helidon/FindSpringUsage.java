@@ -371,24 +371,26 @@ public final class FindSpringUsage extends Recipe {
     }
 
     private static Classification classify(String typeName) {
-        // The initial migration recipes automate only these exact source-level mappings.
+        // v0.1 reports type-family coverage only. Occurrence-level leaf recipes remain opt-in,
+        // so even types with a bounded implementation are never labelled fully automatic here.
         if (isOneOf(typeName,
                 "org.springframework.stereotype.Component",
                 "org.springframework.stereotype.Service",
                 "org.springframework.context.annotation.Configuration",
                 "org.springframework.context.annotation.Bean",
                 "org.springframework.beans.factory.annotation.Autowired")) {
-            return automatic("Dependency injection", "Jakarta CDI and jakarta.inject");
+            return partial("Dependency injection", "Jakarta CDI and jakarta.inject");
         }
         if ("org.springframework.stereotype.Repository".equals(typeName)) {
             return manual("Spring repository stereotype",
                     "Explicit CDI bean with reviewed persistence exception mapping");
         }
         if ("org.springframework.beans.factory.annotation.Value".equals(typeName)) {
-            return automatic("Externalized configuration", "MicroProfile Config @ConfigProperty");
+            return manual("Externalized configuration",
+                    "Explicit MicroProfile Config contract or compatibility adapter");
         }
         if ("org.springframework.transaction.annotation.Transactional".equals(typeName)) {
-            return automatic("Transactions", "jakarta.transaction.Transactional");
+            return partial("Transactions", "jakarta.transaction.Transactional");
         }
         if (isOneOf(typeName,
                 "org.springframework.web.bind.annotation.RestController",
@@ -402,28 +404,28 @@ public final class FindSpringUsage extends Recipe {
                 "org.springframework.web.bind.annotation.PathVariable",
                 "org.springframework.web.bind.annotation.RequestBody",
                 "org.springframework.web.bind.annotation.RequestHeader")) {
-            return automatic("Spring MVC", "Jakarta REST annotations");
+            return manual("Spring MVC", "Jakarta REST annotations");
         }
         if ("org.springframework.stereotype.Controller".equals(typeName)) {
             return manual("Spring MVC view controller", "Redesign as Jakarta REST or retain a dedicated view layer");
         }
 
         if (typeName.startsWith("org.springframework.data.")) {
-            return partial("Spring Data", "Jakarta Persistence repository or DAO");
+            return manual("Spring Data", "Jakarta Persistence repository or DAO");
         }
         if (typeName.startsWith("org.springframework.boot.actuate.")) {
-            return partial("Spring Boot Actuator", "MicroProfile Health and Metrics");
+            return manual("Spring Boot Actuator", "MicroProfile Health and Metrics");
         }
         if (typeName.startsWith("org.springframework.scheduling.") ||
             isOneOf(typeName, "org.springframework.context.annotation.EnableScheduling")) {
-            return partial("Scheduling", "Helidon scheduling or Jakarta Concurrency");
+            return manual("Scheduling", "Helidon scheduling or Jakarta Concurrency");
         }
         if (typeName.startsWith("org.springframework.cache.") ||
             isOneOf(typeName, "org.springframework.cache.annotation.EnableCaching")) {
-            return partial("Caching", "Application-specific cache with CDI integration");
+            return manual("Caching", "Application-specific cache with CDI integration");
         }
         if ("org.springframework.http.ResponseEntity".equals(typeName)) {
-            return partial("Spring MVC response type", "jakarta.ws.rs.core.Response");
+            return manual("Spring MVC response type", "jakarta.ws.rs.core.Response");
         }
         if (isOneOf(typeName,
                 "org.springframework.web.context.request.async.DeferredResult",
@@ -462,7 +464,7 @@ public final class FindSpringUsage extends Recipe {
             return manual("Spring Boot auto-configuration", "Explicit CDI producers or a CDI portable extension");
         }
         if (typeName.startsWith("org.springframework.web.")) {
-            return partial("Spring MVC", "Jakarta REST or a Helidon web API");
+            return manual("Spring MVC", "Jakarta REST or a Helidon web API");
         }
         if (typeName.startsWith("org.springframework.transaction.")) {
             return partial("Transactions", "Jakarta Transactions");
@@ -489,10 +491,6 @@ public final class FindSpringUsage extends Recipe {
             }
         }
         return false;
-    }
-
-    private static Classification automatic(String feature, String replacement) {
-        return new Classification(feature, "AUTOMATIC", replacement);
     }
 
     private static Classification partial(String feature, String replacement) {

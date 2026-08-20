@@ -31,7 +31,7 @@ class MigrateSpringTransactionalToJakartaTest implements RewriteTest {
 
     @DocumentExample
     @Test
-    void migratesDefaultAndRollbackRules() {
+    void preservesSpringErrorRollbackForDefaultTransactions() {
         rewriteRun(
           java(
             """
@@ -45,10 +45,39 @@ class MigrateSpringTransactionalToJakartaTest implements RewriteTest {
                   @Transactional
                   void createOrder() {
                   }
+              }
+              """,
+            """
+              package com.example.orders;
 
+              import jakarta.enterprise.context.ApplicationScoped;
+
+              @ApplicationScoped
+              class OrderService {
+                  @jakarta.transaction.Transactional(rollbackOn = Error.class)
+                  void createOrder() {
+                  }
+              }
+              """
+          )
+        );
+    }
+
+    @Test
+    void refusesCombinedRollbackAndNoRollbackRules() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
                   @Transactional(
-                          noRollbackFor = IllegalArgumentException.class,
-                          rollbackFor = {java.io.IOException.class, java.sql.SQLException.class})
+                          rollbackFor = java.io.IOException.class,
+                          noRollbackFor = java.sql.SQLException.class)
                   void importOrders() {
                   }
               }
@@ -57,18 +86,306 @@ class MigrateSpringTransactionalToJakartaTest implements RewriteTest {
               package com.example.orders;
 
               import jakarta.enterprise.context.ApplicationScoped;
-
-              import java.io.IOException;
-              import java.sql.SQLException;
+              import org.springframework.transaction.annotation.Transactional;
 
               @ApplicationScoped
               class OrderService {
-                  @jakarta.transaction.Transactional
+                  /*~~(Manual migration: combined rollbackFor and noRollbackFor rules require semantic review)~~>*/@Transactional(
+                          rollbackFor = java.io.IOException.class,
+                          noRollbackFor = java.sql.SQLException.class)
+                  void importOrders() {
+                  }
+              }
+              """
+          )
+        );
+    }
+
+    @Test
+    void refusesOneSidedRollbackRulesUntilErrorSemanticsCanBePreserved() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class ImportService {
+                  @Transactional(rollbackFor = java.io.IOException.class)
+                  void importOrders() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class ImportService {
+                  /*~~(Manual migration: Spring rollback rules require semantic review to preserve Error behavior and rule precedence)~~>*/@Transactional(rollbackFor = java.io.IOException.class)
+                  void importOrders() {
+                  }
+              }
+              """
+          ),
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class RetryService {
+                  @Transactional(noRollbackFor = java.io.IOException.class)
+                  void retryOrders() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class RetryService {
+                  /*~~(Manual migration: Spring rollback rules require semantic review to preserve Error behavior and rule precedence)~~>*/@Transactional(noRollbackFor = java.io.IOException.class)
+                  void retryOrders() {
+                  }
+              }
+              """
+          )
+        );
+    }
+
+    @Test
+    void refusesEveryTransactionAnnotationWhenOneClassOverrideIsUnsupported() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              @Transactional
+              class OrderService {
                   void createOrder() {
                   }
 
-                  @jakarta.transaction.Transactional(rollbackOn = {IOException.class, SQLException.class}, dontRollbackOn = IllegalArgumentException.class)
-                  void importOrders() {
+                  @Transactional(readOnly = true)
+                  void summarizeOrders() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              /*~~(Manual migration: class contains unsupported Spring transaction semantics; no transaction annotations were changed)~~>*/@Transactional
+              class OrderService {
+                  void createOrder() {
+                  }
+
+                  /*~~(Manual migration: class contains unsupported Spring transaction semantics; no transaction annotations were changed)~~>*/@Transactional(readOnly = true)
+                  void summarizeOrders() {
+                  }
+              }
+              """
+          )
+        );
+    }
+
+    @Test
+    void refusesModuleWithNonDefaultGlobalRollbackPolicy() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import org.springframework.transaction.annotation.EnableTransactionManagement;
+              import org.springframework.transaction.annotation.RollbackOn;
+
+              @EnableTransactionManagement(rollbackOn = RollbackOn.ALL_EXCEPTIONS)
+              class TransactionConfiguration {
+              }
+              """,
+            source -> source.path(
+                    "orders/src/main/java/com/example/orders/TransactionConfiguration.java")
+          ),
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  @Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  /*~~(Manual migration: transaction conversion was deferred because non-portable Spring transaction infrastructure is present in this migration scope)~~>*/@Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            source -> source.path("orders/src/main/java/com/example/orders/OrderService.java")
+          )
+        );
+    }
+
+    @Test
+    void refusesModuleWithAspectJTransactionMode() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import org.springframework.context.annotation.AdviceMode;
+              import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+              @EnableTransactionManagement(mode = AdviceMode.ASPECTJ)
+              class TransactionConfiguration {
+              }
+              """,
+            source -> source.path(
+                    "orders/src/main/java/com/example/orders/TransactionConfiguration.java")
+          ),
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  @Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  /*~~(Manual migration: transaction conversion was deferred because non-portable Spring transaction infrastructure is present in this migration scope)~~>*/@Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            source -> source.path("orders/src/main/java/com/example/orders/OrderService.java")
+          )
+        );
+    }
+
+    @Test
+    void refusesModuleWithReactiveTransactionManager() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import org.springframework.transaction.ReactiveTransactionManager;
+
+              class TransactionConfiguration {
+                  ReactiveTransactionManager transactionManager;
+              }
+              """,
+            source -> source.path(
+                    "orders/src/main/java/com/example/orders/TransactionConfiguration.java")
+          ),
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  @Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  /*~~(Manual migration: transaction conversion was deferred because non-portable Spring transaction infrastructure is present in this migration scope)~~>*/@Transactional
+                  void createOrder() {
+                  }
+              }
+              """,
+            source -> source.path("orders/src/main/java/com/example/orders/OrderService.java")
+          )
+        );
+    }
+
+    @Test
+    void refusesTransactionScopeThatUsesUserTransaction() {
+        rewriteRun(
+          java(
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import jakarta.transaction.UserTransaction;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  UserTransaction userTransaction;
+
+                  @Transactional
+                  void createOrder() throws Exception {
+                      userTransaction.begin();
+                  }
+              }
+              """,
+            """
+              package com.example.orders;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import jakarta.transaction.UserTransaction;
+              import org.springframework.transaction.annotation.Transactional;
+
+              @ApplicationScoped
+              class OrderService {
+                  UserTransaction userTransaction;
+
+                  /*~~(Manual migration: transaction conversion was deferred because non-portable Spring transaction infrastructure is present in this migration scope)~~>*/@Transactional
+                  void createOrder() throws Exception {
+                      userTransaction.begin();
                   }
               }
               """
@@ -412,7 +729,7 @@ class MigrateSpringTransactionalToJakartaTest implements RewriteTest {
               @RestController
               public class InventoryController {
                   @GetMapping("/inventory")
-                  @jakarta.transaction.Transactional
+                  @jakarta.transaction.Transactional(rollbackOn = Error.class)
                   public String inventory() {
                       return "inventory";
                   }

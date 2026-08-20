@@ -19,8 +19,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class MigrateSpringDiToCdi extends Recipe {
     private static final AnnotationMatcher CONFIGURATION =
@@ -75,8 +73,6 @@ public class MigrateSpringDiToCdi extends Recipe {
             "Manual migration: unqualified @Autowired may rely on Spring name fallback";
     private static final String REPOSITORY_REVIEW =
             "Manual migration: Spring @Repository exception translation requires manual CDI persistence review";
-    private static final Pattern VALUE_PLACEHOLDER =
-            Pattern.compile("^\\$\\{([^:{}]+)(?::([^{}]*))?}$");
 
     @Override
     public String getDisplayName() {
@@ -554,11 +550,8 @@ public class MigrateSpringDiToCdi extends Recipe {
             private boolean hasUnsupportedValueMembers(J.ClassDeclaration classDecl) {
                 for (org.openrewrite.java.tree.Statement statement : classDecl.getBody().getStatements()) {
                     if (statement instanceof J.VariableDeclarations) {
-                        J.VariableDeclarations field = (J.VariableDeclarations) statement;
-                        J.Annotation value = findAnnotation(field.getLeadingAnnotations(), VALUE);
-                        if (value != null && (!isSupportedValue(value, field.getType()) ||
-                                field.hasModifier(J.Modifier.Type.Static) ||
-                                field.hasModifier(J.Modifier.Type.Final))) {
+                        if (findAnnotation(((J.VariableDeclarations) statement).getLeadingAnnotations(),
+                                VALUE) != null) {
                             return true;
                         }
                     } else if (statement instanceof J.MethodDeclaration) {
@@ -570,59 +563,14 @@ public class MigrateSpringDiToCdi extends Recipe {
                             if (!(parameter instanceof J.VariableDeclarations)) {
                                 continue;
                             }
-                            J.VariableDeclarations variables = (J.VariableDeclarations) parameter;
-                            J.Annotation value = findAnnotation(variables.getLeadingAnnotations(), VALUE);
-                            if (value == null) {
-                                continue;
-                            }
-                            if (!isSupportedValue(value, variables.getType()) ||
-                                    method.hasModifier(J.Modifier.Type.Static) ||
-                                    method.isConstructor() && (method.hasModifier(J.Modifier.Type.Private) ||
-                                            hasAnotherInjectionConstructor(classDecl, method)) ||
-                                    !method.isConstructor() && !hasProducerAnnotation(method)) {
+                            if (findAnnotation(((J.VariableDeclarations) parameter).getLeadingAnnotations(),
+                                    VALUE) != null) {
                                 return true;
                             }
                         }
                     }
                 }
                 return false;
-            }
-
-            private boolean isSupportedValue(J.Annotation annotation, JavaType targetType) {
-                if (!isEquivalentConfigScalar(targetType) || annotation.getArguments() == null ||
-                        annotation.getArguments().size() != 1) {
-                    return false;
-                }
-                Expression value = annotation.getArguments().get(0);
-                if (value instanceof J.Assignment) {
-                    J.Assignment assignment = (J.Assignment) value;
-                    if (!"value".equals(assignment.getVariable().printTrimmed())) {
-                        return false;
-                    }
-                    value = assignment.getAssignment();
-                }
-                if (!(value instanceof J.Literal) ||
-                        !(((J.Literal) value).getValue() instanceof String)) {
-                    return false;
-                }
-                Matcher matcher = VALUE_PLACEHOLDER.matcher((String) ((J.Literal) value).getValue());
-                return matcher.matches() && (matcher.group(2) == null || !matcher.group(2).isEmpty());
-            }
-
-            private boolean isEquivalentConfigScalar(JavaType type) {
-                if (type instanceof JavaType.Primitive) {
-                    JavaType.Primitive primitive = (JavaType.Primitive) type;
-                    return primitive != JavaType.Primitive.Void && primitive != JavaType.Primitive.None &&
-                            primitive != JavaType.Primitive.Null && primitive != JavaType.Primitive.Char;
-                }
-                return TypeUtils.isOfClassType(type, "java.lang.String") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Boolean") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Byte") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Short") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Integer") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Long") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Float") ||
-                        TypeUtils.isOfClassType(type, "java.lang.Double");
             }
 
             private boolean hasProducerAnnotation(J.MethodDeclaration method) {

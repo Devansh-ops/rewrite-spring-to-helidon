@@ -30,9 +30,41 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
                 .expectedCyclesThatMakeChanges(1);
     }
 
+    @Test
+    void preservesBareScalarValueBecauseItsConversionContractIsNotPortable() {
+        rewriteRun(
+          java(
+            """
+              package com.example.config;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.beans.factory.annotation.Value;
+
+              @ApplicationScoped
+              class ServiceConfig {
+                  @Value("${service.name:catalog}")
+                  String serviceName;
+              }
+              """,
+            """
+              package com.example.config;
+
+              import jakarta.enterprise.context.ApplicationScoped;
+              import org.springframework.beans.factory.annotation.Value;
+
+              @ApplicationScoped
+              class ServiceConfig {
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.name:catalog}")
+                  String serviceName;
+              }
+              """
+          )
+        );
+    }
+
     @DocumentExample
     @Test
-    void migratesTypedConfigurationAndMarksAnEmptyDefault() {
+    void preservesAndMarksTypedConfigurationIncludingAnEmptyDefault() {
         rewriteRun(
           java(
             """
@@ -57,21 +89,17 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               package com.acme.config;
 
               import jakarta.enterprise.context.ApplicationScoped;
-              import jakarta.inject.Inject;
-              import org.eclipse.microprofile.config.inject.ConfigProperty;
               import org.springframework.beans.factory.annotation.Value;
 
               @ApplicationScoped
               class ServiceConfig {
-                  @Inject
-                  @ConfigProperty(name = "service.http.connect-timeout")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.http.connect-timeout}")
                   int connectTimeout;
 
-                  @Inject
-                  @ConfigProperty(name = "service.security.hsts.enabled", defaultValue = "true")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value(value = "${service.security.hsts.enabled:true}")
                   boolean hstsEnabled;
 
-                  /*~~(Manual migration: MicroProfile Config ignores empty annotation defaults)~~>*/@Value("${service.ui.url:}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.ui.url:}")
                   String dataStudioUrl;
               }
               """
@@ -80,7 +108,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
     }
 
     @Test
-    void establishesCdiInjectionAndMarksUnsupportedInjectionPoints() {
+    void preservesAndMarksEveryFieldAndParameterInjectionPoint() {
         rewriteRun(
           java(
             """
@@ -160,41 +188,39 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               import jakarta.enterprise.context.Dependent;
               import jakarta.enterprise.inject.Produces;
               import jakarta.inject.Inject;
-              import org.eclipse.microprofile.config.inject.ConfigProperty;
               import org.springframework.beans.factory.annotation.Value;
               import org.springframework.context.annotation.Bean;
 
               @ApplicationScoped
               class InjectionPoints {
                   @Inject
-                  @ConfigProperty(name = "existing.field")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${existing.field}")
                   String existing;
 
                   @Produces
-                  Object client(@ConfigProperty(name = "client.url", defaultValue = "https://localhost") String url) {
+                  Object client(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${client.url:https://localhost}") String url) {
                       return new Object();
                   }
 
-                  /*~~(Manual migration: CDI cannot inject a final @ConfigProperty field)~~>*/@Value("${immutable.value}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${immutable.value}")
                   final String immutable = "";
 
-                  /*~~(Manual migration: CDI does not inject static @ConfigProperty fields)~~>*/@Value("${global.value}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${global.value}")
                   static String global;
 
-                  void configure(/*~~(Manual migration: @Value on a non-producer method parameter needs a CDI injection design)~~>*/@Value("${runtime.value}") String value) {
+                  void configure(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${runtime.value}") String value) {
                   }
               }
 
               @ApplicationScoped
               class ConstructorInjection {
-                  ConstructorInjection(/*~~(Manual migration: a normal-scoped CDI bean needs a non-private no-arg constructor for client proxying)~~>*/@Value("${service.url}") String serviceUrl) {
+                  ConstructorInjection(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.url}") String serviceUrl) {
                   }
               }
 
               @Dependent
               class DependentConstructorInjection {
-                  @Inject
-                  DependentConstructorInjection(@ConfigProperty(name = "dependent.url") String serviceUrl) {
+                  DependentConstructorInjection(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${dependent.url}") String serviceUrl) {
                   }
               }
 
@@ -203,8 +229,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
                   ProxyableConstructorInjection() {
                   }
 
-                  @Inject
-                  ProxyableConstructorInjection(@ConfigProperty(name = "proxyable.url") String serviceUrl) {
+                  ProxyableConstructorInjection(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${proxyable.url}") String serviceUrl) {
                   }
               }
 
@@ -214,14 +239,14 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
                   AmbiguousInjection() {
                   }
 
-                  AmbiguousInjection(/*~~(Manual migration: constructor is not a unique eligible CDI injection point)~~>*/@Value("${ambiguous.value}") String value) {
+                  AmbiguousInjection(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${ambiguous.value}") String value) {
                   }
               }
 
               @ApplicationScoped
               class LegacyProducer {
                   @Bean(name = "client")
-                  Object client(/*~~(Manual migration: @Value on a non-producer method parameter needs a CDI injection design)~~>*/@Value("${legacy.url}") String url) {
+                  Object client(/*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${legacy.url}") String url) {
                       return new Object();
                   }
               }
@@ -268,19 +293,19 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               class UnsupportedConfiguration {
                   static final String PROPERTY = "${service.url}";
 
-                  /*~~(Manual migration: Spring SpEL and nested placeholders have no mechanical MP Config mapping)~~>*/@Value("#{systemProperties['user.home']}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("#{systemProperties['user.home']}")
                   String home;
 
-                  /*~~(Manual migration: Spring SpEL and nested placeholders have no mechanical MP Config mapping)~~>*/@Value("${service.url:${fallback.url}}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.url:${fallback.url}}")
                   String nested;
 
-                  /*~~(Manual migration: @Value must contain one literal ${name[:default]} placeholder)~~>*/@Value(PROPERTY)
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value(PROPERTY)
                   String constant;
               }
 
               @Singleton
               class PseudoScopedConfiguration {
-                  /*~~(Manual migration: @ConfigProperty injection requires a proven CDI bean)~~>*/@Value("${service.name}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.name}")
                   String serviceName;
               }
               """
@@ -289,7 +314,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
     }
 
     @Test
-    void migratesProvenScalarTypesAndRefusesNonEquivalentConversions() {
+    void preservesAndMarksEveryConversionDomain() {
         rewriteRun(
           java(
             """
@@ -320,8 +345,6 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               package com.example.config;
 
               import jakarta.enterprise.context.ApplicationScoped;
-              import jakarta.inject.Inject;
-              import org.eclipse.microprofile.config.inject.ConfigProperty;
               import org.springframework.beans.factory.annotation.Value;
 
               import java.time.Duration;
@@ -329,18 +352,16 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
 
               @ApplicationScoped
               class RuntimeConfig {
-                  @Inject
-                  @ConfigProperty(name = "service.name", defaultValue = "catalog")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.name:catalog}")
                   String serviceName;
 
-                  @Inject
-                  @ConfigProperty(name = "retry.count", defaultValue = "3")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${retry.count:3}")
                   int retryCount;
 
-                  /*~~(Manual migration: Spring and MicroProfile Config do not have proven-equivalent conversion semantics for this target type)~~>*/@Value("${request.timeout:30s}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${request.timeout:30s}")
                   Duration requestTimeout;
 
-                  /*~~(Manual migration: Spring and MicroProfile Config do not have proven-equivalent conversion semantics for this target type)~~>*/@Value("${service.tags:catalog,api}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${service.tags:catalog,api}")
                   List<String> tags;
               }
               """
@@ -349,7 +370,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
     }
 
     @Test
-    void refusesConfigMigrationInsideAnUnsafeSpringController() {
+    void preservesValueInsideASpringController() {
         rewriteRun(
           java(
             """
@@ -383,7 +404,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               @ApplicationScoped
               @RestController
               public class SearchController {
-                  /*~~(Manual migration: controller contains unsupported Spring MVC mapping or binding semantics; no Spring MVC annotations were changed)~~>*/@Value("${search.limit:10}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${search.limit:10}")
                   int searchLimit;
 
                   @GetMapping("/search")
@@ -397,7 +418,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
     }
 
     @Test
-    void defersControllerConfigForModuleWideWebAndSecuritySemantics() {
+    void preservesControllerValuesRegardlessOfOtherModuleSemantics() {
         rewriteRun(
           java(
             """
@@ -431,7 +452,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               @ApplicationScoped
               @RestController
               public class BillingController {
-                  /*~~(Manual migration: configuration conversion was deferred because Spring Web or servlet runtime infrastructure is present in this migration scope)~~>*/@Value("${billing.limit:10}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${billing.limit:10}")
                   int limit;
 
                   @GetMapping("/billing")
@@ -484,7 +505,7 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               @ApplicationScoped
               @RestController
               public class ProfileController {
-                  /*~~(Manual migration: configuration conversion was deferred because Spring Security is present in this migration scope)~~>*/@Value("${profile.limit:10}")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${profile.limit:10}")
                   int limit;
 
                   @GetMapping("/profile")
@@ -533,16 +554,14 @@ class MigrateSpringValueToConfigPropertyTest implements RewriteTest {
               package com.example.inventory;
 
               import jakarta.enterprise.context.ApplicationScoped;
-              import jakarta.inject.Inject;
-              import org.eclipse.microprofile.config.inject.ConfigProperty;
+              import org.springframework.beans.factory.annotation.Value;
               import org.springframework.web.bind.annotation.GetMapping;
               import org.springframework.web.bind.annotation.RestController;
 
               @ApplicationScoped
               @RestController
               public class InventoryController {
-                  @Inject
-                  @ConfigProperty(name = "inventory.limit", defaultValue = "10")
+                  /*~~(Manual migration: bare Spring @Value injection has no behavior-preserving direct MicroProfile Config mapping)~~>*/@Value("${inventory.limit:10}")
                   int limit;
 
                   @GetMapping("/inventory")

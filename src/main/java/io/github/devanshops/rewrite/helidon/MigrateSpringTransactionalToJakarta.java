@@ -16,17 +16,23 @@ import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.SearchResult;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Migrates the semantics-preserving subset of Spring transaction annotations. */
 public class MigrateSpringTransactionalToJakarta extends
         ScanningRecipe<MigrateSpringTransactionalToJakarta.Accumulator> {
     private static final AnnotationMatcher TRANSACTIONAL =
             new AnnotationMatcher("@org.springframework.transaction.annotation.Transactional");
+    private static final AnnotationMatcher ENABLE_TRANSACTION_MANAGEMENT =
+            new AnnotationMatcher(
+                    "@org.springframework.transaction.annotation.EnableTransactionManagement");
     private static final String[] CDI_BEAN_DEFINING_ANNOTATIONS = {
             "jakarta.enterprise.context.ApplicationScoped",
             "jakarta.enterprise.context.RequestScoped",
@@ -42,6 +48,12 @@ public class MigrateSpringTransactionalToJakarta extends
     private static final String PROJECT_SPRING_WEB_INFRASTRUCTURE =
             "Manual migration: transaction conversion was deferred because Spring Web or servlet runtime " +
             "infrastructure is present in this migration scope";
+    private static final String CLASS_TRANSACTION_ATOMICITY =
+            "Manual migration: class contains unsupported Spring transaction semantics; " +
+            "no transaction annotations were changed";
+    private static final String NON_PORTABLE_TRANSACTION_INFRASTRUCTURE =
+            "Manual migration: transaction conversion was deferred because non-portable Spring " +
+            "transaction infrastructure is present in this migration scope";
 
     @Override
     public String getDisplayName() {
@@ -50,9 +62,9 @@ public class MigrateSpringTransactionalToJakarta extends
 
     @Override
     public String getDescription() {
-        return "Migrates default `@Transactional` and maps `rollbackFor`/`noRollbackFor` to Jakarta " +
-               "`rollbackOn`/`dontRollbackOn` on proven CDI beans; marks unsafe targets, propagation, " +
-               "isolation, timeout, read-only, and manager settings.";
+        return "Migrates bare default `@Transactional` on proven CDI beans while materializing " +
+               "Spring-compatible `Error` rollback behavior; marks rollback rules, unsafe targets, " +
+               "non-portable transaction infrastructure, and Spring-only settings for review.";
     }
 
     @Override
@@ -74,6 +86,12 @@ public class MigrateSpringTransactionalToJakarta extends
                     SourceFile sourceFile = (SourceFile) tree;
                     SpringSecurityProjectGate.scanSource(sourceFile, accumulator.springSecurity);
                     SpringWebProjectGate.scanSource(sourceFile, accumulator.springWeb);
+                    if (!SpringSecurityProjectGate.isTestSource(sourceFile.getSourcePath()) &&
+                            sourceFile instanceof J.CompilationUnit &&
+                            hasNonPortableTransactionInfrastructure((J.CompilationUnit) sourceFile)) {
+                        accumulator.nonPortableTransactionModules.add(
+                                SpringSecurityProjectGate.moduleRoot(sourceFile.getSourcePath()));
+                    }
                 }
                 return tree;
             }
@@ -94,6 +112,10 @@ public class MigrateSpringTransactionalToJakarta extends
 
                 J.ClassDeclaration beanClass = getCursor().firstEnclosing(J.ClassDeclaration.class);
                 J.CompilationUnit compilationUnit = getCursor().firstEnclosing(J.CompilationUnit.class);
+                if (compilationUnit != null && accumulator.nonPortableTransactionModules.contains(
+                        SpringSecurityProjectGate.moduleRoot(compilationUnit.getSourcePath()))) {
+                    return SearchResult.found(a, NON_PORTABLE_TRANSACTION_INFRASTRUCTURE);
+                }
                 if (beanClass != null) {
                     MigrateSpringMvcToJakartaRest.ControllerPreflight controllerPreflight =
                             MigrateSpringMvcToJakartaRest.classLocalPreflight(
@@ -117,6 +139,9 @@ public class MigrateSpringTransactionalToJakarta extends
                             "Manual migration: Jakarta @Transactional requires an enclosing " +
                             "CDI bean-defining annotation");
                 }
+                if (requiresClassAtomicRefusal(beanClass)) {
+                    return SearchResult.found(a, CLASS_TRANSACTION_ATOMICITY);
+                }
                 Object annotationTarget = getCursor().getParentOrThrow().getValue();
                 J.MethodDeclaration method = annotationTarget instanceof J.MethodDeclaration ?
                         (J.MethodDeclaration) annotationTarget : null;
@@ -131,6 +156,17 @@ public class MigrateSpringTransactionalToJakarta extends
                             "Manual migration: Spring propagation, isolation, timeout, readOnly, labels, " +
                             "and transaction manager selection require semantic review");
                 }
+                if (hasAttribute(attributes, "rollbackOn") &&
+                        hasAttribute(attributes, "dontRollbackOn")) {
+                    return SearchResult.found(a,
+                            "Manual migration: combined rollbackFor and noRollbackFor rules require " +
+                            "semantic review");
+                }
+                if (!attributes.isEmpty()) {
+                    return SearchResult.found(a,
+                            "Manual migration: Spring rollback rules require semantic review to " +
+                            "preserve Error behavior and rule precedence");
+                }
 
                 // Keep the target import request first for this same-simple-name replacement. Removing
                 // the Spring import first makes JavaTemplate render a newly imported simple name rather
@@ -138,26 +174,11 @@ public class MigrateSpringTransactionalToJakarta extends
                 maybeAddImport("jakarta.transaction.Transactional", false);
                 maybeRemoveImport("org.springframework.transaction.annotation.Transactional");
                 doAfterVisit(new ShortenFullyQualifiedTypeReferences().getVisitor());
-                if (attributes.isEmpty()) {
-                    return HelidonJavaTemplate.builder("@Transactional")
-                            .imports("jakarta.transaction.Transactional")
-                            .build()
-                            .apply(getCursor(), a.getCoordinates().replace());
-                }
-                if (attributes.size() == 1) {
-                    Attribute attribute = attributes.get(0);
-                    return HelidonJavaTemplate.builder(
-                                    "@Transactional(" + attribute.jakartaName + " = #{any()})")
-                            .imports("jakarta.transaction.Transactional")
-                            .build()
-                            .apply(getCursor(), a.getCoordinates().replace(), attribute.value);
-                }
                 return HelidonJavaTemplate.builder(
-                                "@Transactional(rollbackOn = #{any()}, dontRollbackOn = #{any()})")
+                                "@Transactional(rollbackOn = Error.class)")
                         .imports("jakarta.transaction.Transactional")
                         .build()
-                        .apply(getCursor(), a.getCoordinates().replace(), attributes.get(0).value,
-                                attributes.get(1).value);
+                        .apply(getCursor(), a.getCoordinates().replace());
             }
         });
     }
@@ -173,6 +194,60 @@ public class MigrateSpringTransactionalToJakarta extends
             }
         }
         return false;
+    }
+
+    private static boolean hasNonPortableTransactionInfrastructure(
+            J.CompilationUnit compilationUnit) {
+        final AtomicBoolean detected = new AtomicBoolean(false);
+        new JavaIsoVisitor<AtomicBoolean>() {
+            @Override
+            public J.Annotation visitAnnotation(J.Annotation annotation, AtomicBoolean found) {
+                J.Annotation a = super.visitAnnotation(annotation, found);
+                if (ENABLE_TRANSACTION_MANAGEMENT.matches(a) && a.getArguments() != null &&
+                        !a.getArguments().isEmpty()) {
+                    found.set(true);
+                }
+                return a;
+            }
+
+            @Override
+            public J.Identifier visitIdentifier(J.Identifier identifier, AtomicBoolean found) {
+                J.Identifier id = super.visitIdentifier(identifier, found);
+                if (isReactiveTransactionType(id.getType(), new HashSet<String>()) ||
+                        isUserTransactionType(id.getType())) {
+                    found.set(true);
+                }
+                return id;
+            }
+        }.visit(compilationUnit, detected);
+        return detected.get();
+    }
+
+    private static boolean isReactiveTransactionType(JavaType type, Set<String> visited) {
+        JavaType.FullyQualified fullyQualified = TypeUtils.asFullyQualified(type);
+        if (fullyQualified == null) {
+            return false;
+        }
+        String name = fullyQualified.getFullyQualifiedName();
+        if ("org.springframework.transaction.ReactiveTransactionManager".equals(name) ||
+                name.startsWith("org.springframework.transaction.reactive.")) {
+            return true;
+        }
+        if (!visited.add(name)) {
+            return false;
+        }
+        for (JavaType.FullyQualified implemented : fullyQualified.getInterfaces()) {
+            if (isReactiveTransactionType(implemented, visited)) {
+                return true;
+            }
+        }
+        JavaType.FullyQualified supertype = fullyQualified.getSupertype();
+        return supertype != null && isReactiveTransactionType(supertype, visited);
+    }
+
+    private static boolean isUserTransactionType(JavaType type) {
+        return TypeUtils.isOfClassType(type, "jakarta.transaction.UserTransaction") ||
+               TypeUtils.isOfClassType(type, "javax.transaction.UserTransaction");
     }
 
     private static boolean hasBeanDefiningAnnotation(J.ClassDeclaration classDeclaration) {
@@ -269,6 +344,40 @@ public class MigrateSpringTransactionalToJakarta extends
         return true;
     }
 
+    private static boolean requiresClassAtomicRefusal(J.ClassDeclaration beanClass) {
+        int transactionAnnotationCount = 0;
+        boolean unsupported = false;
+        for (J.Annotation annotation : beanClass.getLeadingAnnotations()) {
+            if (TRANSACTIONAL.matches(annotation)) {
+                transactionAnnotationCount++;
+                unsupported |= !isSupportedTransactionAnnotation(annotation, beanClass, null);
+            }
+        }
+        for (org.openrewrite.java.tree.Statement statement : beanClass.getBody().getStatements()) {
+            if (!(statement instanceof J.MethodDeclaration)) {
+                continue;
+            }
+            J.MethodDeclaration method = (J.MethodDeclaration) statement;
+            for (J.Annotation annotation : method.getLeadingAnnotations()) {
+                if (TRANSACTIONAL.matches(annotation)) {
+                    transactionAnnotationCount++;
+                    unsupported |= !isSupportedTransactionAnnotation(annotation, beanClass, method);
+                }
+            }
+        }
+        return transactionAnnotationCount > 1 && unsupported;
+    }
+
+    private static boolean isSupportedTransactionAnnotation(J.Annotation annotation,
+                                                              J.ClassDeclaration beanClass,
+                                                              J.MethodDeclaration method) {
+        if (!isInterceptable(beanClass, method)) {
+            return false;
+        }
+        List<Attribute> attributes = supportedAttributes(annotation);
+        return attributes != null && attributes.isEmpty();
+    }
+
     private static List<Attribute> supportedAttributes(J.Annotation annotation) {
         List<Expression> arguments = annotation.getArguments();
         List<Attribute> result = new ArrayList<Attribute>();
@@ -292,6 +401,15 @@ public class MigrateSpringTransactionalToJakarta extends
         return result;
     }
 
+    private static boolean hasAttribute(List<Attribute> attributes, String jakartaName) {
+        for (Attribute attribute : attributes) {
+            if (jakartaName.equals(attribute.jakartaName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static final class Attribute {
         private final String jakartaName;
         private final Expression value;
@@ -307,5 +425,7 @@ public class MigrateSpringTransactionalToJakarta extends
                 SpringSecurityProjectGate.newAccumulator();
         private final SpringWebProjectGate.State springWeb =
                 SpringWebProjectGate.newAccumulator();
+        private final Set<Path> nonPortableTransactionModules =
+                ConcurrentHashMap.newKeySet();
     }
 }

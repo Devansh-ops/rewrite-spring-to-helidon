@@ -27,8 +27,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Migrates the common, semantics-preserving Spring MVC annotation subset to
- * Jakarta REST. Anything conditional or Spring-specific is marked for review.
+ * Reports Spring MVC controllers that require Jakarta REST migration. The v0.1 recipe preserves
+ * every controller as an atomic Spring unit and adds a manual-review marker only.
  */
 public class MigrateSpringMvcToJakartaRest extends ScanningRecipe<MigrateSpringMvcToJakartaRest.Accumulator> {
     private static final String SPRING_RESPONSE = "org.springframework.http.ResponseEntity";
@@ -84,6 +84,9 @@ public class MigrateSpringMvcToJakartaRest extends ScanningRecipe<MigrateSpringM
     private static final String PROJECT_SPRING_WEB_INFRASTRUCTURE =
             "Manual migration: Spring Web or servlet runtime infrastructure is present in this migration scope; " +
             "preserve filters, advice, exception, and request/response semantics before converting Spring MVC annotations";
+    private static final String V0_1_MIGRATION_BOUNDARY =
+            "Manual migration: v0.1 preserves this Spring MVC controller because routing, binding, validation, " +
+            "and response semantics are not yet proven equivalent; no source code was changed";
     private static final AnnotationMatcher REST_CONTROLLER =
             new AnnotationMatcher("@org.springframework.web.bind.annotation.RestController");
     private static final AnnotationMatcher REQUEST_MAPPING =
@@ -139,8 +142,8 @@ public class MigrateSpringMvcToJakartaRest extends ScanningRecipe<MigrateSpringM
 
     @Override
     public String getDescription() {
-        return "Migrates REST controllers, HTTP method mappings, paths, query/path/header parameters, " +
-               "and request bodies to Jakarta REST while marking conditional Spring MVC semantics for review.";
+        return "Finds Spring MVC controllers that require Jakarta REST migration and preserves each controller " +
+               "unchanged until its routing, binding, validation, and response semantics can be proven equivalent.";
     }
 
     @Override
@@ -171,6 +174,32 @@ public class MigrateSpringMvcToJakartaRest extends ScanningRecipe<MigrateSpringM
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor(final Accumulator accumulator) {
+        return Preconditions.check(
+                new UsesType<>("org.springframework.web.bind.annotation.RestController", false),
+                new JavaIsoVisitor<ExecutionContext>() {
+                    @Override
+                    public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDecl,
+                                                                     ExecutionContext ctx) {
+                        J.ClassDeclaration cd = super.visitClassDeclaration(classDecl, ctx);
+                        J.Annotation restController = find(cd.getLeadingAnnotations(), REST_CONTROLLER);
+                        if (restController == null) {
+                            return cd;
+                        }
+                        final J.Annotation controller = restController;
+                        return cd.withLeadingAnnotations(ListUtils.map(cd.getLeadingAnnotations(), annotation ->
+                                annotation == controller ?
+                                        SearchResult.found(annotation, V0_1_MIGRATION_BOUNDARY) : annotation));
+                    }
+                });
+    }
+
+    /*
+     * Retained as implementation reference for the bounded, opt-in migration recipes planned after
+     * v0.1. It is deliberately unreachable from the public recipe until its semantic preconditions
+     * have been specified and tested at the RewriteTest seam.
+     */
+    @SuppressWarnings("unused")
+    private TreeVisitor<?, ExecutionContext> getLegacyMigrationVisitor(final Accumulator accumulator) {
         return Preconditions.check(
                 new UsesType<>("org.springframework.web.bind.annotation.RestController", false),
                 new JavaIsoVisitor<ExecutionContext>() {

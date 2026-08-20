@@ -30,7 +30,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Converts common Spring {@code ResponseEntity} builders to Jakarta REST {@code Response}. */
+/**
+ * Reports Spring {@code ResponseEntity} usage that requires Jakarta REST migration. The v0.1
+ * recipe preserves every affected source file and adds a manual-review marker only.
+ */
 public class MigrateResponseEntityToJakartaResponse extends
         ScanningRecipe<MigrateResponseEntityToJakartaResponse.Accumulator> {
     private static final String SPRING_RESPONSE = "org.springframework.http.ResponseEntity";
@@ -49,6 +52,9 @@ public class MigrateResponseEntityToJakartaResponse extends
     private static final String PROJECT_SPRING_WEB_INFRASTRUCTURE =
             "Manual migration: ResponseEntity conversion was deferred because Spring Web or servlet runtime " +
             "infrastructure is present in this migration scope";
+    private static final String V0_1_MIGRATION_BOUNDARY =
+            "Manual migration: v0.1 preserves ResponseEntity because status, headers, entity providers, and " +
+            "caller contracts are not yet proven equivalent; no response types or builders were changed";
     private static final MethodMatcher RESPONSE_FACTORY =
             new MethodMatcher("org.springframework.http.ResponseEntity *(..)", true);
     private static final Map<String, Integer> HTTP_STATUS_CODES = statusCodes();
@@ -60,8 +66,8 @@ public class MigrateResponseEntityToJakartaResponse extends
 
     @Override
     public String getDescription() {
-        return "Converts common `ok`, `status`, `badRequest`, `notFound`, `noContent`, `accepted`, " +
-               "and `created` response builders, including standard `HttpStatus` constants.";
+        return "Finds Spring `ResponseEntity` usage that requires Jakarta REST migration and preserves each " +
+               "affected source file unchanged until its status, headers, entity, and caller contracts are proven.";
     }
 
     @Override
@@ -92,6 +98,23 @@ public class MigrateResponseEntityToJakartaResponse extends
 
     @Override
     public TreeVisitor<?, ExecutionContext> getVisitor(final Accumulator accumulator) {
+        return Preconditions.check(new UsesType<>(SPRING_RESPONSE, false),
+                new JavaIsoVisitor<ExecutionContext>() {
+                    @Override
+                    public J.CompilationUnit visitCompilationUnit(J.CompilationUnit compilationUnit,
+                                                                  ExecutionContext ctx) {
+                        return markAtomicRefusal(compilationUnit, V0_1_MIGRATION_BOUNDARY);
+                    }
+                });
+    }
+
+    /*
+     * Retained as implementation reference for the bounded, opt-in migration recipes planned after
+     * v0.1. It is deliberately unreachable from the public recipe until its semantic preconditions
+     * have been specified and tested at the RewriteTest seam.
+     */
+    @SuppressWarnings("unused")
+    private TreeVisitor<?, ExecutionContext> getLegacyMigrationVisitor(final Accumulator accumulator) {
         return Preconditions.check(new UsesType<>(SPRING_RESPONSE, false),
                 new JavaVisitor<ExecutionContext>() {
             @Override

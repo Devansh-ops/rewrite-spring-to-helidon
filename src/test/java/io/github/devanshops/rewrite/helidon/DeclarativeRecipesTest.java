@@ -41,20 +41,10 @@ class DeclarativeRecipesTest {
     }
 
     @Test
-    void canonicalRecipeKeepsSafetyCriticalOrdering() {
+    void canonicalRecipeIsAssessmentOnlyUntilModuleAtomicMigrationExists() {
         assertSingletonPrecondition(PREFIX + "SpringBoot4ToHelidonMp");
         assertThat(children(PREFIX + "SpringBoot4ToHelidonMp"))
-                .containsExactly(
-                        PREFIX + "PrepareMavenBuildForHelidonMp",
-                        PREFIX + "AddHelidonMpResources",
-                        PREFIX + "MigrateSpringNamedBeansToCdi",
-                        PREFIX + "MigrateSpringDiToCdi",
-                        PREFIX + "MigrateResponseEntityToJakartaResponse",
-                        PREFIX + "MigrateSpringMvcToJakartaRest",
-                        PREFIX + "MigrateSpringTransactionalToJakarta",
-                        PREFIX + "MigrateSpringValueToConfigProperty",
-                        PREFIX + "MigrateSpringBootMain",
-                        PREFIX + "FindSpringUsage");
+                .containsExactly(PREFIX + "FindSpringUsage");
     }
 
     @Test
