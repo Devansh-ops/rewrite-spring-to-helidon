@@ -27,6 +27,7 @@ class DeclarativeRecipesTest {
                 .extracting(RecipeDescriptor::getName)
                 .contains(
                         PREFIX + "AnalyzeSpringBootToHelidonMp",
+                        PREFIX + "AssessSpringBootModuleMigrationReadiness",
                         PREFIX + "SpringBoot4ToHelidonMp",
                         PREFIX + "SpringBootToHelidonMp",
                         PREFIX + "SpringBootToHelidonMpViaBoot4");
@@ -75,6 +76,25 @@ class DeclarativeRecipesTest {
         assertThat(descriptor(PREFIX + "FindSpringUsage").getDataTables())
                 .extracting(DataTableDescriptor::getName)
                 .anyMatch(name -> name.endsWith("SpringUsageTable"));
+    }
+
+    @Test
+    void moduleReadinessEntryPointHasNoOptionsAndPublishesItsStablePlanTable() {
+        RecipeDescriptor readiness = descriptor(
+                PREFIX + "AssessSpringBootModuleMigrationReadiness");
+        assertThat(readiness.getOptions()).isEmpty();
+        DataTableDescriptor table = readiness.getDataTables().stream()
+                .filter(candidate -> candidate.getName().endsWith(
+                        "ModuleMigrationReadinessTable"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "ModuleMigrationReadinessTable was not published"));
+        assertThat(table.getColumns())
+                .extracting(ColumnDescriptor::getName)
+                .containsExactly(
+                        "modulePath", "buildSystem", "profile", "outcome",
+                        "sourcePath", "sourceKind", "feature", "construct",
+                        "reasonCode", "reason", "suggestedDirection");
     }
 
     @Test

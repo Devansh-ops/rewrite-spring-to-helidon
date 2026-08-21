@@ -22,6 +22,10 @@ Keep generated `target/` content out of commits.
 - Give every generated `JavaTemplate` the target API classpath it needs.
 - Keep target build changes additive until source residue, compilation, tests, and runtime behavior
   prove that a dependency can be removed.
+- For a family using the module-atomic coordinator, collect and claim evidence before freeze,
+  replace only the exact collected source, declare every generated path, and keep apply
+  decision-free. Tests must prove whole-module cancellation, projected-state residue detection,
+  path/claim conflicts, and sibling isolation.
 - Keep examples generic. Do not submit proprietary source, organization names, credentials, URLs,
   internal package names, or customer data.
 

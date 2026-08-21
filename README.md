@@ -145,6 +145,7 @@ ready to leave Spring.
 | Leaf recipe | Scope |
 | --- | --- |
 | `AddHelidonMpResources` | Opt-in: adds missing CDI and MicroProfile Config scaffolds to executable modules. |
+| `AssessSpringBootModuleMigrationReadiness` | Unreleased, read-only: resolves supplied Maven/Gradle module ownership and reports whether each complete supplied module has any blocker for the `HELIDON_MP_CONSERVATIVE` profile. It does not certify runtime readiness or mutate source. |
 | `FindSpringUsage` | Marks and exports a classified inventory of remaining Spring types. |
 | `FindSpringProjectUsage` | Exports occurrence-level bounded Maven, Gradle, Java source-set, configuration, XML, and Spring registration metadata evidence without changing semantics. |
 | `PrepareMavenBuildForHelidonMp` | Opt-in: adds Helidon dependency management and MP core without removing Spring. |
@@ -413,6 +414,40 @@ The following remain explicit engineering work in v0.2:
 
 The canonical recipe leaves all Spring code in place and adds search markers instead of guessing.
 There is no application-wide atomic runtime switch or Spring-removal finalizer in v0.2.
+
+## Module-atomic readiness assessment in development
+
+The current development source adds a separately activated, no-option recipe:
+
+```text
+io.github.devanshops.rewrite.helidon.AssessSpringBootModuleMigrationReadiness
+```
+
+It builds a module index from the complete set of source files supplied to OpenRewrite. The
+deepest Maven or Gradle build root owns each artifact. Missing or incompatible reactor children,
+ambiguous ownership, unparsed known artifacts, unsupported Kotlin/Groovy application source,
+missing Java attribution, unresolved build declarations, application configuration, Spring XML,
+registration metadata, and remaining Spring source/build evidence all refuse the affected module.
+An `ELIGIBLE_FOR_PROFILE` row means only that no supplied artifact violates the documented
+`HELIDON_MP_CONSERVATIVE` profile. It is not proof that omitted files, runtime-generated behavior,
+infrastructure, packaging, or deployment are ready for Helidon.
+
+Refused modules receive exactly one sanitized marker at a safe module anchor. Every blocker is
+exported separately through `ModuleMigrationReadinessTable`; configuration values and neighboring
+XML or metadata content are never copied into marker text or table cells. Buildless groups that
+have no safe anchor remain table-only.
+
+The package-private coordinator behind this assessment is the atomic seam for future bounded
+migration families. Families must claim exact evidence occurrences, propose replacements for the
+exact collected source, and declare generated paths before the plan freezes. The coordinator then
+re-scans the projected module. Duplicate claims, unclaimed removals, remaining or newly introduced
+residue, invalid replacements, generated-path collisions, or any other refusal discard every
+planned change for that module while leaving eligible siblings independent. The apply phase only
+reads the frozen plan; it makes no new decisions.
+
+This recipe is intentionally absent from the v0.2 canonical top-level recipes. The readiness
+assessment is read-only, and the module-atomic MVC, response, launcher, and finalizer families are
+separate future work.
 
 ## Optional Spring Boot 4 normalization and licensing
 
