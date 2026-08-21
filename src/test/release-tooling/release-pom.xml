@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.devansh-ops</groupId>
+    <artifactId>release-tooling-fixture</artifactId>
+    <version>0.2.1</version>
+    <scm>
+        <connection>scm:git:https://github.com/Devansh-ops/rewrite-spring-to-helidon.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/Devansh-ops/rewrite-spring-to-helidon.git</developerConnection>
+        <url>https://github.com/Devansh-ops/rewrite-spring-to-helidon</url>
+        <tag>v0.2.1</tag>
+    </scm>
+</project>

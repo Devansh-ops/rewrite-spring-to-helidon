@@ -6,7 +6,7 @@
 
     <groupId>io.github.devansh-ops</groupId>
     <artifactId>rewrite-spring-to-helidon</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1-SNAPSHOT</version>
     <name>OpenRewrite Spring Boot to Helidon MP recipes</name>
     <description>Mechanical and assessment recipes for migrating Spring Boot applications to Helidon MP.</description>
     <url>https://github.com/Devansh-ops/rewrite-spring-to-helidon</url>
@@ -30,13 +30,14 @@
         <connection>scm:git:https://github.com/Devansh-ops/rewrite-spring-to-helidon.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/Devansh-ops/rewrite-spring-to-helidon.git</developerConnection>
         <url>https://github.com/Devansh-ops/rewrite-spring-to-helidon</url>
-        <tag>v0.2.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <project.build.outputTimestamp>2026-08-20T00:00:00Z</project.build.outputTimestamp>
+        <central.skipPublishing>true</central.skipPublishing>
         <maven.compiler.release>8</maven.compiler.release>
         <maven.compiler.testRelease>21</maven.compiler.testRelease>
         <rewrite-recipe-bom.version>3.37.0</rewrite-recipe-bom.version>
@@ -251,4 +252,105 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <version>3.6.3</version>
+                        <executions>
+                            <execution>
+                                <id>enforce-release-version</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireReleaseVersion>
+                                            <message>The release profile cannot publish a SNAPSHOT project version.</message>
+                                        </requireReleaseVersion>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.4.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-release-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <bestPractices>true</bestPractices>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <version>3.1.4</version>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                            <waitMaxTime>7200</waitMaxTime>
+                            <waitPollingInterval>10</waitPollingInterval>
+                            <checksums>all</checksums>
+                            <failOnBuildFailure>true</failOnBuildFailure>
+                            <ignorePublishedComponents>false</ignorePublishedComponents>
+                            <skipPublishing>${central.skipPublishing}</skipPublishing>
+                            <deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
