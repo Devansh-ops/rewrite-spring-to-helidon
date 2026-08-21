@@ -34,6 +34,7 @@ preconditions do not prove that the whole module is ready to leave Spring.
 
 | Leaf | v0.2 behavior | Important boundary |
 | --- | --- | --- |
+| `AssessSpringBootModuleMigrationReadiness` | Unreleased read-only module assessment | Resolves supplied Maven/Gradle ownership and exports `ModuleMigrationReadinessTable` rows for the `HELIDON_MP_CONSERVATIVE` profile. Eligibility means only that no supplied artifact produced a profile blocker; it is not runtime certification and the recipe is not in a top-level composition. |
 | `FindSpringUsage` | Assessment | Type-family classification is not occurrence-level proof. Review every marker and row. |
 | `FindSpringProjectUsage` | Assessment | Inventories bounded project evidence without certifying readiness. Gradle detection covers literal plugins-block IDs, literal string coordinates in recognized dependency/BOM calls, and common literal Groovy `group`/`name` map notation; legacy `apply plugin:`, Kotlin named arguments, dynamic expressions, version catalogs, aliases, and unresolved models are not guessed. |
 | `PrepareMavenBuildForHelidonMp` | Opt-in mutation | Additively imports `io.helidon:helidon-dependencies:4.5.3` and adds `helidon-microprofile-core` to detected executable Maven modules. It does not replace parents, remove Spring, change Java, or select feature runtimes. Dependency mediation can still change. |
@@ -50,6 +51,38 @@ preconditions do not prove that the whole module is ready to leave Spring.
 Do not blindly compose mutating leaves. Apply one to an isolated branch or worktree, inspect the
 dry-run patch, compile and test the module, and retain Spring startup until all source, dependency,
 configuration, test, packaging, and deployment contracts have been deliberately migrated.
+
+## Module-atomic readiness profile in development
+
+`AssessSpringBootModuleMigrationReadiness` is a separately activated, no-option, read-only recipe.
+It evaluates the complete `SourceFile` set supplied to OpenRewrite against the stable
+`HELIDON_MP_CONSERVATIVE` profile and reports `ELIGIBLE_FOR_PROFILE` or `REFUSED` per resolved
+module. It does not probe the filesystem for omitted files and does not claim runnable output.
+
+The index assigns each artifact to the deepest compatible Maven or Gradle build root. It refuses
+missing, ambiguous, incomplete, cross-build, or model-disagreeing topology; known artifacts that
+did not parse; unsupported Kotlin/Groovy application sources; incomplete Java attribution;
+unresolved dependency, plugin, or reactor declarations; nonempty `application*` configuration;
+Spring XML and registration metadata; and remaining Spring Java or build evidence. Resolved
+non-Spring Maven declarations remain eligible. Ordinary Gradle `project(...)` dependencies are not
+treated as reactor membership; membership comes from settings declarations.
+
+The public output has two complementary levels:
+
+- exactly one sanitized `MODULE_REFUSED` marker at a safe module anchor; and
+- one occurrence-preserving `ModuleMigrationReadinessTable` row per blocker, with stable reason
+  codes and no configuration values.
+
+The internal coordinator freezes a complete plan in the three-argument `generate` phase. A future
+migration family must claim exact evidence, replace the exact collected source, and declare every
+generated path. Before commit, the coordinator rejects duplicate or unresolved claims, unclaimed
+evidence removal, ineffective claims, fabricated replacements, path collisions, and Spring
+residue introduced or retained by the projected originals or generated sources. Any refusal
+cancels all proposed changes in that module; eligible siblings remain independent. The visitor is
+decision-free and applies only frozen replacements.
+
+This development seam does not yet supply a mutating migration family. MVC, response, launcher,
+packaging, final Spring removal, and runtime validation remain separate bounded work.
 
 ## Bounded transaction migration
 

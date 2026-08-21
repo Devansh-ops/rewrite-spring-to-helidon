@@ -18,11 +18,26 @@ All notable changes will be documented here. This project follows
   unsigned main, sources, Javadoc, and published POM artifacts.
 - Explicit development and stable-tag release-tooling contracts, exercised in ordinary CI with
   publishing disabled unless the protected release workflow opts in.
+- A separately activatable `AssessSpringBootModuleMigrationReadiness` recipe now exports
+  occurrence-preserving module eligibility/refusal evidence for the
+  `HELIDON_MP_CONSERVATIVE` profile without changing source semantics.
+- A package-private module-atomic coordination seam freezes evidence claims, replacements, and
+  generated paths, validates the complete projected module, and commits all-or-nothing per module
+  while preserving sibling isolation.
 
 ### Changed
 
 - Development metadata now uses `0.2.1-SNAPSHOT` and SCM tag `HEAD`. Version `0.2.0` remains a
   source-only GitHub release and is not represented as a Maven Central publication.
+
+### Safety
+
+- Module readiness fails closed for incomplete or ambiguous Maven/Gradle topology, unparsed known
+  artifacts, unsupported source languages, missing attribution, unresolved build declarations,
+  application configuration, Spring XML/metadata, and remaining Spring source/build evidence.
+- Refused modules receive one sanitized anchor marker; exact blocker rows omit configuration
+  values. Duplicate claims, unclaimed removal, ineffective replacements, and generated-path
+  collisions cancel the entire module plan.
 
 ## [0.2.0] - 2026-08-20
 
